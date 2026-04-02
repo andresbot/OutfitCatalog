@@ -1,249 +1,327 @@
-# Arquitectura del Proyecto - Outfit Catalog
+# Arquitectura del Proyecto — Outfit Catalog
+
+## 🏛️ Patrón: MVVM + Clean Architecture
+
+Este proyecto implementa **MVVM (Model-View-ViewModel)** combinado con **Clean Architecture** para lograr:
+
+- **Separación de responsabilidades** clara entre capas
+- **Testabilidad** en cada capa de forma independiente
+- **Escalabilidad** al agregar nuevos features sin afectar los existentes
+- **Mantenibilidad** con código organizado y predecible
+
+---
+
+## 📐 Diagrama de Capas
+
+```
+┌───────────────────────────────────────────────────────┐
+│                  PRESENTATION LAYER                   │
+│                                                       │
+│   ┌─────────┐    ┌──────────────┐    ┌──────────┐    │
+│   │  Pages  │───▶│  ViewModels  │    │ Widgets  │    │
+│   │ (Views) │    │(ChangeNotify)│    │(Reusable)│    │
+│   └─────────┘    └──────┬───────┘    └──────────┘    │
+│                         │                             │
+├─────────────────────────┼─────────────────────────────┤
+│                         ▼                             │
+│                    DOMAIN LAYER                       │
+│                   (Capa Central)                      │
+│                                                       │
+│   ┌──────────┐   ┌──────────┐   ┌────────────────┐   │
+│   │ Entities │   │Use Cases │──▶│  Repository    │   │
+│   │  (Pure)  │   │ (Lógica) │   │  (Contracts)   │   │
+│   └──────────┘   └──────────┘   └────────┬───────┘   │
+│                                          │ abstract   │
+├──────────────────────────────────────────┼────────────┤
+│                                          ▼            │
+│                     DATA LAYER                        │
+│                                                       │
+│   ┌─────────────┐   ┌────────┐   ┌──────────────┐   │
+│   │  Repository  │   │ Models │   │ Data Sources │   │
+│   │    (Impl)    │   │ (DTOs) │   │ (Local/API)  │   │
+│   └─────────────┘   └────────┘   └──────────────┘   │
+│                                                       │
+└───────────────────────────────────────────────────────┘
+```
+
+### Regla de Dependencia (Dependency Rule)
+
+```
+Presentation ──▶ Domain ◀── Data
+```
+
+- **Domain** es el centro y **NO depende de ninguna otra capa**.
+- **Presentation** depende de Domain (usa Use Cases y Entities).
+- **Data** depende de Domain (implementa los contratos de Repository).
+- Las capas externas **nunca** son importadas por las capas internas.
+
+---
 
 ## 📁 Estructura de Carpetas
 
 ```
-outfit_catalog/
-├── lib/
-│   ├── main.dart
-│   ├── app.dart
-│   │
-│   ├── models/
-│   │   ├── garment.dart              # Prenda individual
-│   │   ├── look.dart                 # Look (conjunto de prendas)
-│   │   ├── catalog.dart              # Catálogo del vendedor
-│   │   ├── vendor.dart               # Información del vendedor
-│   │   └── look_share.dart           # Datos para compartir por WhatsApp
-│   │
-│   ├── providers/
-│   │   ├── catalog_provider.dart      # State de catálogo
-│   │   ├── look_provider.dart         # State de looks en creación
-│   │   ├── vendor_provider.dart       # State de vendedor
-│   │   └── settings_provider.dart     # State de configuración
-│   │
-│   ├── screens/
-│   │   ├── auth/
-│   │   │   ├── login_screen.dart
-│   │   │   └── register_screen.dart
-│   │   │
-│   │   ├── dashboard/
-│   │   │   └── dashboard_screen.dart
-│   │   │
-│   │   ├── catalog/
-│   │   │   ├── catalog_list_screen.dart      # Ver prendas
-│   │   │   ├── garment_detail_screen.dart    # Detalle de prenda
-│   │   │   ├── add_garment_screen.dart       # Agregar prenda
-│   │   │   └── edit_garment_screen.dart      # Editar prenda
-│   │   │
-│   │   ├── looks/
-│   │   │   ├── looks_list_screen.dart        # Ver looks guardados
-│   │   │   ├── create_look_screen.dart       # Armar nuevo look
-│   │   │   ├── look_detail_screen.dart       # Ver look armado
-│   │   │   └── look_preview_screen.dart      # Preview antes de compartir
-│   │   │
-│   │   ├── sharing/
-│   │   │   ├── share_options_screen.dart     # Opciones de envío
-│   │   │   ├── whatsapp_share_screen.dart    # Preparar para WhatsApp
-│   │   │   └── share_confirmation_screen.dart
-│   │   │
-│   │   └── profile/
-│   │       ├── profile_screen.dart           # Perfil del vendedor
-│   │       └── settings_screen.dart          # Configuración
-│   │
-│   ├── widgets/
-│   │   ├── catalog/
-│   │   │   ├── garment_card.dart             # Card de prenda
-│   │   │   ├── garment_grid.dart             # Grid de prendas
-│   │   │   └── garment_filter.dart           # Filtros de prendas
-│   │   │
-│   │   ├── looks/
-│   │   │   ├── look_item_selector.dart       # Selector de prendas para look
-│   │   │   ├── look_preview_card.dart        # Preview del look
-│   │   │   ├── color_picker.dart             # Selector de colores
-│   │   │   └── look_canvas.dart              # Visor de look (grid visual)
-│   │   │
-│   │   ├── shared/
-│   │   │   ├── loading_widget.dart
-│   │   │   ├── error_widget.dart
-│   │   │   ├── empty_state_widget.dart
-│   │   │   └── custom_app_bar.dart
-│   │   │
-│   │   └── common/
-│   │       ├── image_picker_widget.dart      # Para fotos de prendas
-│   │       ├── category_badge.dart
-│   │       └── price_display.dart
-│   │
-│   ├── services/
-│   │   ├── api/
-│   │   │   ├── api_client.dart
-│   │   │   ├── garment_service.dart
-│   │   │   ├── look_service.dart
-│   │   │   └── vendor_service.dart
-│   │   │
-│   │   ├── storage/
-│   │   │   ├── local_storage_service.dart    # SQLite/Hive para datos locales
-│   │   │   ├── image_storage_service.dart    # Guardar imágenes
-│   │   │   └── preferences_service.dart      # SharedPreferences
-│   │   │
-│   │   └── integration/
-│   │       ├── whatsapp_service.dart         # Integración WhatsApp
-│   │       ├── share_service.dart            # Servicios de compartir
-│   │       └── image_generator_service.dart  # Generar imágenes de looks
-│   │
-│   ├── config/
-│   │   ├── theme/
-│   │   │   ├── app_theme.dart
-│   │   │   ├── app_colors.dart
-│   │   │   └── text_styles.dart
-│   │   │
-│   │   ├── routes/
-│   │   │   └── app_routes.dart
-│   │   │
-│   │   ├── constants/
-│   │   │   ├── app_constants.dart
-│   │   │   ├── api_constants.dart
-│   │   │   └── garment_categories.dart       # Categorías predefinidas
-│   │   │
-│   │   └── environment/
-│   │       └── config.dart
-│   │
-│   ├── utils/
-│   │   ├── validators.dart
-│   │   ├── formatters.dart
-│   │   ├── dialog_utils.dart
-│   │   ├── image_utils.dart                  # Utilidades de imagen
-│   │   ├── whatsapp_utils.dart               # Generar links WhatsApp
-│   │   └── extensions.dart
-│   │
-│   └── exceptions/
-│       └── app_exceptions.dart
+lib/
+├── main.dart                              # Entry point: inicializa DI y corre la app
+├── app.dart                               # Widget raíz: MaterialApp, temas, routing
 │
-├── assets/
-│   ├── images/
-│   │   ├── app_logo.png
-│   │   ├── empty_states/
-│   │   └── illustrations/
-│   │
-│   ├── icons/
-│   │   ├── categories/
-│   │   └── custom_icons.ttf
-│   │
-│   └── fonts/
+├── core/                                  # 🔧 Código compartido entre features
+│   ├── di/
+│   │   └── injection_container.dart       # Configuración de get_it (Service Locator)
+│   ├── error/
+│   │   ├── failures.dart                  # Clases Failure para Either<Failure, T>
+│   │   └── exceptions.dart                # Excepciones técnicas (capa Data)
+│   ├── usecases/
+│   │   └── usecase.dart                   # Clase base abstracta UseCase<Type, Params>
+│   ├── theme/
+│   │   ├── app_theme.dart                 # ThemeData claro y oscuro
+│   │   ├── app_colors.dart                # Paleta de colores centralizada
+│   │   └── text_styles.dart               # Estilos tipográficos
+│   ├── constants/
+│   │   └── app_constants.dart             # Constantes globales
+│   └── utils/
+│       └── extensions.dart                # Extensiones de Dart/Flutter
 │
-├── android/
-├── ios/
-├── web/
-├── windows/
-├── macos/
-├── linux/
+├── features/                              # 📦 Organizado por feature (vertical slicing)
+│   ├── garment/                           # Feature: Catálogo de Prendas
+│   │   ├── data/
+│   │   │   ├── datasources/               # Fuentes de datos (SQLite, API, memoria)
+│   │   │   ├── models/                    # DTOs con toJson/fromJson/toEntity
+│   │   │   └── repositories/             # Implementaciones concretas de repos
+│   │   ├── domain/
+│   │   │   ├── entities/                  # Entidades puras del negocio
+│   │   │   ├── repositories/             # Contratos abstractos de repos
+│   │   │   └── usecases/                 # Casos de uso (1 acción = 1 use case)
+│   │   └── presentation/
+│   │       ├── viewmodels/               # ViewModels (ChangeNotifier)
+│   │       ├── pages/                    # Pantallas/Vistas
+│   │       └── widgets/                  # Widgets reutilizables del feature
+│   │
+│   ├── look/                              # Feature: Looks / Conjuntos
+│   │   ├── data/
+│   │   │   ├── datasources/
+│   │   │   ├── models/
+│   │   │   └── repositories/
+│   │   ├── domain/
+│   │   │   ├── entities/
+│   │   │   ├── repositories/
+│   │   │   └── usecases/
+│   │   └── presentation/
+│   │       ├── viewmodels/
+│   │       ├── pages/
+│   │       └── widgets/
+│   │
+│   └── auth/                              # Feature: Autenticación
+│       ├── data/
+│       │   ├── datasources/
+│       │   ├── models/
+│       │   └── repositories/
+│       ├── domain/
+│       │   ├── entities/
+│       │   ├── repositories/
+│       │   └── usecases/
+│       └── presentation/
+│           ├── viewmodels/
+│           ├── pages/
+│           └── widgets/
 │
-└── pubspec.yaml
+└── shared/                                # Widgets compartidos entre features
+    └── widgets/
 ```
 
-## 🔄 Flujo de Datos
+---
 
-```
-┌─────────────────┐
-│   Login/Auth    │
-└────────┬────────┘
-         │
-         ↓
-┌─────────────────────────┐
-│ Dashboard (Home Screen) │
-└────────┬────────────────┘
-         │
-    ┌────┼────┬────────────────┐
-    │    │    │                │
-    ↓    ↓    ↓                ↓
-┌──────┐  │   │           ┌─────────┐
-│Catálogo  │   │           │ Perfil  │
-└──────┘  │   │           └─────────┘
-    │    │    │
-    ↓    ↓    ↓
-    ├─→ Ver/Agregar Prendas
-    │   ├─ Foto
-    │   ├─ Nombre
-    │   ├─ Precio
-    │   ├─ Talla
-    │   ├─ Color
-    │   └─ Categoría
-    │
-    ├─→ Crear Look (Armar conjunto)
-    │   ├─ Seleccionar 3-5 prendas
-    │   ├─ Preview visual
-    │   ├─ Nombre y descripción
-    │   └─ Guardar/Compartir
-    │
-    └─→ Compartir por WhatsApp
-        ├─ Generar imagen del look
-        ├─ Mensaje personalizado
-        └─ Enviar por WhatsApp
+## 🧩 Descripción de cada Capa
+
+### Domain Layer (Capa Central)
+
+La capa más importante. Contiene la **lógica de negocio pura** sin dependencias externas.
+
+| Componente | Responsabilidad | Ejemplo |
+|------------|----------------|---------|
+| **Entities** | Objetos de negocio puros, inmutables | `Garment`, `Look`, `Vendor` |
+| **Repositories** | Contratos abstractos (interfaces) | `abstract class GarmentRepository` |
+| **Use Cases** | Una acción de negocio encapsulada | `GetGarments`, `CreateLook` |
+
+Los Use Cases retornan `Either<Failure, T>` usando `dartz` para manejo funcional de errores:
+
+```dart
+abstract class UseCase<Type, Params> {
+  Future<Either<Failure, Type>> call(Params params);
+}
 ```
 
-## 🎨 Configuración Visual
+### Data Layer
 
-### Theme System
-- `AppTheme` - Temas claro y oscuro
-- `AppColors` - Paleta de colores
-- `TextStyles` - Estilos de texto
+Implementa los contratos definidos en Domain. Maneja la comunicación con fuentes de datos.
 
-## 🔐 Flujo de Autenticación
+| Componente | Responsabilidad | Ejemplo |
+|------------|----------------|---------|
+| **Models** | DTOs con serialización (JSON ↔ Entity) | `GarmentModel` con `toJson()`, `toEntity()` |
+| **Data Sources** | Acceso directo a datos (DB, API, etc.) | `GarmentLocalDataSource` |
+| **Repositories** | Implementación concreta de los contracts | `GarmentRepositoryImpl` |
 
+**Flujo de errores en Data:**
 ```
-1. Login Screen
-   ↓
-2. Validar credenciales
-   ↓
-3. Guardar token local
-   ↓
-4. Cargar datos del vendedor
-   ↓
-5. Ir a Dashboard
+DataSource lanza Exception → Repository captura → Retorna Left(Failure)
 ```
 
-## 💾 Estrategia de Almacenamiento
+### Presentation Layer
 
-```
-Local (SQLite/Hive)
-├─ Prendas (catálogo)
-├─ Looks (conjuntos guardados)
-├─ Configuración de vendedor
-└─ Preferencias de app
+Muestra datos al usuario y captura interacciones. Usa **MVVM** con `ChangeNotifier`.
 
-Network (API Backend)
-├─ Autenticación
-├─ Sincronización de datos
-└─ Historial de compartidos
+| Componente | Responsabilidad | Ejemplo |
+|------------|----------------|---------|
+| **ViewModels** | Estado reactivo, lógica de presentación | `GarmentViewModel extends ChangeNotifier` |
+| **Pages** | Pantallas que consumen ViewModels | `GarmentListPage` |
+| **Widgets** | Componentes UI reutilizables | `GarmentCard` |
+
+---
+
+## 💉 Inyección de Dependencias (get_it)
+
+Usamos `get_it` como **Service Locator** para inyectar dependencias:
+
+```dart
+final sl = GetIt.instance;
+
+// Registrar en orden: External → DataSources → Repos → UseCases → ViewModels
+Future<void> initDependencies() async {
+  // Data Sources
+  sl.registerLazySingleton<GarmentLocalDataSource>(
+    () => GarmentLocalDataSourceImpl(),
+  );
+
+  // Repositories (registrar con el tipo abstracto)
+  sl.registerLazySingleton<GarmentRepository>(
+    () => GarmentRepositoryImpl(localDataSource: sl()),
+  );
+
+  // Use Cases
+  sl.registerLazySingleton(() => GetGarments(sl()));
+
+  // ViewModels (Factory = nueva instancia por pantalla)
+  sl.registerFactory(() => GarmentViewModel(getGarments: sl()));
+}
 ```
+
+### ¿Por qué `registerFactory` para ViewModels?
+
+Cada pantalla necesita su propia instancia del ViewModel. Si fuera Singleton, todas las pantallas compartirían el mismo estado.
+
+### ¿Por qué `registerLazySingleton` para Repos y UseCases?
+
+Son stateless — una sola instancia es suficiente y más eficiente en memoria.
+
+---
+
+## 📐 Convenciones de Nombrado
+
+| Tipo | Convención | Ejemplo |
+|------|-----------|---------|
+| Entity | Nombre del concepto | `Garment` |
+| Model (DTO) | `<Entity>Model` | `GarmentModel` |
+| Repository (abstract) | `<Entity>Repository` | `GarmentRepository` |
+| Repository (impl) | `<Entity>RepositoryImpl` | `GarmentRepositoryImpl` |
+| Use Case | Verbo + Sustantivo | `GetGarments`, `CreateLook` |
+| ViewModel | `<Entity>ViewModel` | `GarmentViewModel` |
+| Page | `<Entity><Acción>Page` | `GarmentListPage` |
+| Data Source | `<Entity><Tipo>DataSource` | `GarmentLocalDataSource` |
+
+---
+
+## 🆕 Guía: Agregar un Nuevo Feature
+
+1. **Crear la estructura de carpetas** dentro de `features/<nombre>/`:
+   ```
+   features/nuevo_feature/
+   ├── data/
+   │   ├── datasources/
+   │   ├── models/
+   │   └── repositories/
+   ├── domain/
+   │   ├── entities/
+   │   ├── repositories/
+   │   └── usecases/
+   └── presentation/
+       ├── viewmodels/
+       ├── pages/
+       └── widgets/
+   ```
+
+2. **Domain primero** (sin dependencias):
+   - Crear la Entity
+   - Definir el Repository contract (abstract class)
+   - Crear los Use Cases necesarios
+
+3. **Data después** (implementa Domain):
+   - Crear el Model (DTO) con mapeo a Entity
+   - Implementar el Data Source
+   - Implementar el Repository concreto
+
+4. **Presentation al final** (consume Domain):
+   - Crear el ViewModel con los Use Cases inyectados
+   - Crear Pages y Widgets
+
+5. **Registrar en DI**: Agregar todas las dependencias en `injection_container.dart`
+
+---
 
 ## 📦 Dependencias Principales
 
 ```yaml
-- provider: ^6.0.0              # State management
-- go_router: ^10.0.0            # Navegación
-- sqflite: ^2.3.0               # Base de datos local
-- image_picker: ^1.0.0          # Seleccionar fotos
-- cached_network_image: ^3.3.0  # Caché de imágenes
-- url_launcher: ^6.1.0          # Abrir WhatsApp
-- share_plus: ^7.0.0            # Compartir
-- dio: ^5.3.0                   # HTTP requests
-- shared_preferences: ^2.2.0    # Key-value storage
-- intl: ^0.18.0                 # Internacionalización
-- google_fonts: ^6.0.0          # Fuentes
+# Arquitectura
+get_it: ^8.0.3         # Service Locator / Inyección de dependencias
+provider: ^6.1.2       # State management en widget tree
+
+# Programación Funcional
+dartz: ^0.10.1         # Either<Failure, T> para manejo de errores
 ```
 
-## 🚀 Flujo de Desarrollo
+---
 
-1. **Capas inferiores primero**
-   - Models → Services → Providers → Screens
+## 🧪 Estrategia de Testing
 
-2. **Separación clara de responsabilidades**
-   - Screens solo llamar a Providers
-   - Providers manejar lógica de negocio
-   - Services comunicar con API/BD
+| Capa | Tipo de Test | Qué se testea |
+|------|-------------|---------------|
+| **Domain** | Unit Test | Use Cases (lógica pura) |
+| **Data** | Unit Test | Models (serialización), Repositories (con mocks) |
+| **Presentation** | Widget Test | Pages y Widgets con ViewModels mockeados |
+| **E2E** | Integration Test | Flujos completos de usuario |
 
-3. **Testing**
-   - Unit tests para Services
-   - Widget tests para Widgets
-   - Integration tests para flujos completos
+---
+
+## 🔄 Flujo de Datos (End-to-End)
+
+```
+Usuario toca botón
+       │
+       ▼
+   Page detecta evento
+       │
+       ▼
+   ViewModel.método()          ← Presentation
+       │
+       ▼
+   UseCase.call(params)        ← Domain
+       │
+       ▼
+   Repository.método()         ← Domain (contract) → Data (impl)
+       │
+       ▼
+   DataSource.query()          ← Data
+       │
+       ▼
+   Retorna datos / Exception
+       │
+       ▼
+   Repository convierte a Either<Failure, T>
+       │
+       ▼
+   UseCase retorna Either
+       │
+       ▼
+   ViewModel actualiza estado + notifyListeners()
+       │
+       ▼
+   Page se reconstruye con nuevos datos
 ```
