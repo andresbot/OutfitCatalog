@@ -1,6 +1,40 @@
-# Outfit Catalog — Flutter App
+# Outfit Catalog
 
 **Outfit Catalog** es una aplicación móvil para vendedores que permite crear un catálogo digital de prendas, armar "looks" (conjuntos) y compartirlos directamente por WhatsApp.
+
+## Estado Actual Del Repositorio
+
+Actualmente conviven dos implementaciones:
+
+- App Flutter (estructura Clean Architecture documentada en este README).
+- App React Native con Expo en la carpeta [rn-mobile](rn-mobile), enfocada en flujo de autenticación por rol y catálogo inicial.
+
+Si quieres revisar el detalle técnico de la implementación en React Native, consulta [rn-mobile/README.md](rn-mobile/README.md).
+
+## App React Native (Expo)
+
+### Stack
+
+- Expo 54
+- React 19
+- React Native 0.81
+- TypeScript 5.9
+- React Navigation
+
+### Ejecución
+
+```bash
+cd rn-mobile
+npm install
+npx expo start
+```
+
+Scripts disponibles en rn-mobile:
+
+- npm run start
+- npm run android
+- npm run ios
+- npm run web
 
 ## 🏛️ Arquitectura
 
