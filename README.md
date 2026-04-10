@@ -1,148 +1,76 @@
-# Outfit Catalog
+# Outfit Catalog (React Native + Expo)
 
-**Outfit Catalog** es una aplicación móvil para vendedores que permite crear un catálogo digital de prendas, armar "looks" (conjuntos) y compartirlos directamente por WhatsApp.
+Outfit Catalog es una aplicacion movil construida con React Native y Expo para gestionar prendas, navegar por catalogo y operar flujos por rol (user, vendor, admin).
 
-## Estado Actual Del Repositorio
+## Estado del proyecto
 
-Actualmente conviven dos implementaciones:
+- Base de aplicacion: Expo SDK 54
+- UI y navegacion funcionales
+- Arquitectura MVVM + Clean Architecture implementada para el feature `garment`
+- Inyeccion de dependencias configurada con un service locator estilo `getIt`
 
-- App Flutter (estructura Clean Architecture documentada en este README).
-- App React Native con Expo en la carpeta [rn-mobile](rn-mobile), enfocada en flujo de autenticación por rol y catálogo inicial.
+## Stack tecnico
 
-Si quieres revisar el detalle técnico de la implementación en React Native, consulta [rn-mobile/README.md](rn-mobile/README.md).
-
-## App React Native (Expo)
-
-### Stack
-
-- Expo 54
-- React 19
+- Expo SDK 54
 - React Native 0.81
 - TypeScript 5.9
-- React Navigation
+- React Navigation (native stack)
 
-### Ejecución
+## Requisitos
+
+- Node.js LTS
+- npm 10+
+- Expo Go (opcional para dispositivo fisico)
+
+## Instalacion
 
 ```bash
-cd rn-mobile
 npm install
-npx expo start
 ```
 
-Scripts disponibles en rn-mobile:
-
-- npm run start
-- npm run android
-- npm run ios
-- npm run web
-
-## 🏛️ Arquitectura
-
-El proyecto implementa **MVVM + Clean Architecture** con 3 capas bien definidas:
-
-| Capa | Responsabilidad | Patrón |
-|------|----------------|--------|
-| **Presentation** | UI, estado reactivo | ViewModels (`ChangeNotifier`) + Pages |
-| **Domain** | Lógica de negocio pura | Entities, Use Cases, Repository contracts |
-| **Data** | Acceso a datos | Models (DTOs), Data Sources, Repository impl |
-
-📖 **Documentación completa de arquitectura:** [ARCHITECTURE.md](./ARCHITECTURE.md)
-
-### Stack Técnico
-
-| Tecnología | Propósito |
-|-----------|-----------|
-| `get_it` | Inyección de dependencias (Service Locator) |
-| `provider` | State management en widget tree |
-| `dartz` | `Either<Failure, T>` para manejo funcional de errores |
-
-### Estructura de Features
-
-Cada feature sigue la misma estructura de 3 capas:
-
-```
-features/<nombre>/
-├── data/          → datasources, models, repositories (impl)
-├── domain/        → entities, repositories (contracts), usecases
-└── presentation/  → viewmodels, pages, widgets
-```
-
-## 🎯 Funcionalidades Clave
-
-### 1. Catálogo Digital de Prendas
-- CRUD completo de prendas (crear, leer, actualizar, eliminar)
-- Subir y gestionar fotos de prendas
-- Categorizar prendas (tops, pantalones, accesorios, etc.)
-- Asignar precio, talla y color
-- Filtrar por categoría, color o rango de precio
-- Gestión de stock
-
-### 2. Crear Looks (Outfits/Conjuntos)
-- Seleccionar múltiples prendas del catálogo
-- Visualizar el look en tiempo real
-- Guardar looks como favoritos
-- Calcular precio total del look
-
-### 3. Compartir por WhatsApp
-- Generar imagen visual del look
-- Mensaje automático personalizado
-- Enviar directamente por WhatsApp
-
-### 4. Autenticación de Vendedor
-- Registro e inicio de sesión
-- Perfil del vendedor con datos personales
-- Número de WhatsApp asociado
-
-## 📋 Requisitos Previos
-
-- Flutter 3.11.0 o superior
-- Dart 3.11.0 o superior
-- IDE: VS Code o Android Studio
-- Android SDK 21+ o iOS 11.0+
-
-## 🚀 Instalación
+## Ejecucion
 
 ```bash
-# 1. Instalar dependencias
-flutter pub get
-
-# 2. Ejecutar la app
-flutter run
+npm run start
 ```
 
-## ▶️ Ejecución
+Scripts utiles:
 
-```bash
-# Modo debug
-flutter run
+- `npm run android`
+- `npm run ios`
+- `npm run web`
 
-# Especificar plataforma
-flutter run -d linux    # Desktop Linux
-flutter run -d chrome   # Web
-flutter run -d emulator # Android Emulator
+## Estructura del codigo
 
-# Modo release
-flutter run --release
+```text
+src/
+├── auth/                      # Estado de autenticacion y contexto
+├── components/                # Componentes compartidos de UI
+├── core/
+│   └── di/                    # Contenedor de dependencias
+├── features/
+│   └── garment/
+│       ├── data/              # Datasource, DTOs y repositorio concreto
+│       ├── domain/            # Entidades, contratos y casos de uso
+│       └── presentation/      # ViewModels + utilidades de presentacion
+├── screens/                   # Pantallas de la app
+├── theme.ts                   # Tokens visuales
+└── types.ts                   # Tipos compartidos de la app
 ```
 
-## 🐛 Debugging
+## Arquitectura (US-04)
 
-```bash
-# Ejecutar con logs detallados
-flutter run -v
+Se implemento MVVM + Clean Architecture para cumplir estos criterios:
 
-# Limpiar caché
-flutter clean
-flutter pub get
+- Capas `data`, `domain` y `presentation` separadas
+- Repositorios abstractos con implementaciones concretas
+- Inyeccion de dependencias centralizada
+- Estructura documentada y mantenible
 
-# Analizar código
-flutter analyze
-```
+Consulta detalles en [ARCHITECTURE.md](ARCHITECTURE.md).
 
-## 📦 Convención de Ramas
+## Proximos pasos recomendados
 
-| Tipo | Formato | Ejemplo |
-|------|---------|---------|
-| Feature | `feat/US-XX-descripcion` | `feat/US-04-clean-architecture` |
-| Bugfix | `fix/descripcion` | `fix/garment-serialization` |
-| Hotfix | `hotfix/descripcion` | `hotfix/crash-on-launch` |
+- Replicar el mismo patron de capas para `auth` y `look`
+- Agregar tests unitarios para usecases y repositorios
+- Separar commits por subtareas para trazabilidad del sprint
