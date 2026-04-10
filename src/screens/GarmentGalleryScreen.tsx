@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -51,8 +52,10 @@ export function GarmentGalleryScreen({ navigation }: Props) {
   const {
     categories,
     selectedCategory,
+    searchQuery,
     filteredGarments,
     setCategory,
+    setSearchQuery,
     syncInfo,
     syncNow,
   } = useGarmentGalleryViewModel();
@@ -157,6 +160,20 @@ export function GarmentGalleryScreen({ navigation }: Props) {
         </Pressable>
       </Modal>
 
+      <View style={styles.searchWrap}>
+        <Text style={styles.searchLabel}>Buscar prendas</Text>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Buscar por nombre o codigo"
+          placeholderTextColor={colors.textMuted}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          autoCapitalize="none"
+          autoCorrect={false}
+          accessibilityLabel="Buscar prendas por nombre o codigo"
+        />
+      </View>
+
       <ScrollView
         horizontal
         style={styles.filtersScroll}
@@ -196,6 +213,11 @@ export function GarmentGalleryScreen({ navigation }: Props) {
         style={styles.list}
         contentContainerStyle={styles.listContent}
         columnWrapperStyle={styles.column}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>No se encontraron prendas para esta busqueda.</Text>
+          </View>
+        }
         renderItem={({ item }) => (
           <Pressable
             style={styles.card}
@@ -297,6 +319,32 @@ const styles = StyleSheet.create({
   },
   filtersScroll: {
     maxHeight: 56,
+  },
+  searchWrap: {
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: radius.sm,
+    backgroundColor: colors.surface,
+    padding: spacing.xs,
+  },
+  searchLabel: {
+    color: colors.textPrimary,
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  searchInput: {
+    height: 44,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: radius.round,
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.md,
+    color: colors.textPrimary,
   },
   filtersRow: {
     paddingHorizontal: spacing.md,
@@ -421,5 +469,12 @@ const styles = StyleSheet.create({
     color: colors.secondary,
     fontWeight: '700',
     marginTop: 2,
+  },
+  emptyState: {
+    marginTop: spacing.lg,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    color: colors.textSecondary,
   },
 });

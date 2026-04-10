@@ -6,12 +6,16 @@ import { GarmentSyncInfo } from '../../domain/entities/GarmentSyncInfo';
 import { GetGarmentCategoriesUseCase } from '../../domain/usecases/GetGarmentCategoriesUseCase';
 import { GetGarmentSyncInfoUseCase } from '../../domain/usecases/GetGarmentSyncInfoUseCase';
 import { GetGarmentsUseCase } from '../../domain/usecases/GetGarmentsUseCase';
+import { SearchGarmentsUseCase } from '../../domain/usecases/SearchGarmentsUseCase';
 import { SyncGarmentsUseCase } from '../../domain/usecases/SyncGarmentsUseCase';
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 class GarmentGalleryViewModel {
   constructor(
     private readonly getGarmentsUseCase: GetGarmentsUseCase,
     private readonly getCategoriesUseCase: GetGarmentCategoriesUseCase,
+    private readonly searchGarmentsUseCase: SearchGarmentsUseCase,
     private readonly syncGarmentsUseCase: SyncGarmentsUseCase,
     private readonly getGarmentSyncInfoUseCase: GetGarmentSyncInfoUseCase,
   ) {}
@@ -22,6 +26,10 @@ class GarmentGalleryViewModel {
 
   loadCategories(): Promise<string[]> {
     return this.getCategoriesUseCase.execute();
+  }
+
+  searchGarments(query: string): Promise<Garment[]> {
+    return this.searchGarmentsUseCase.execute(query);
   }
 
   syncGarments(): Promise<GarmentSyncInfo> {
@@ -37,6 +45,7 @@ export type GarmentGalleryState = {
   garments: Garment[];
   categories: string[];
   selectedCategory: string;
+  searchQuery: string;
   loading: boolean;
   syncInfo: GarmentSyncInfo;
 };
@@ -52,6 +61,7 @@ export function useGarmentGalleryViewModel() {
       new GarmentGalleryViewModel(
         getIt.get<GetGarmentsUseCase>(DI_TOKENS.getGarmentsUseCase),
         getIt.get<GetGarmentCategoriesUseCase>(DI_TOKENS.getGarmentCategoriesUseCase),
+        getIt.get<SearchGarmentsUseCase>(DI_TOKENS.searchGarmentsUseCase),
         getIt.get<SyncGarmentsUseCase>(DI_TOKENS.syncGarmentsUseCase),
         getIt.get<GetGarmentSyncInfoUseCase>(DI_TOKENS.getGarmentSyncInfoUseCase),
       ),
@@ -62,6 +72,7 @@ export function useGarmentGalleryViewModel() {
     garments: [],
     categories: ['Todas'],
     selectedCategory: 'Todas',
+    searchQuery: '',
     loading: true,
     syncInfo: INITIAL_SYNC_INFO,
   });
@@ -109,6 +120,21 @@ export function useGarmentGalleryViewModel() {
     reload();
   }, [reload]);
 
+  useEffect(() => {
+    const timeoutId = setTimeout(async () => {
+      const garments = state.searchQuery.trim()
+        ? await viewModel.searchGarments(state.searchQuery)
+        : await viewModel.loadGarments();
+
+      setState((current) => ({
+        ...current,
+        garments,
+      }));
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => clearTimeout(timeoutId);
+  }, [state.searchQuery, viewModel]);
+
   const filteredGarments = useMemo(() => {
     if (state.selectedCategory === 'Todas') {
       return state.garments;
@@ -120,10 +146,15 @@ export function useGarmentGalleryViewModel() {
     setState((current) => ({ ...current, selectedCategory: category }));
   }, []);
 
+  const setSearchQuery = useCallback((searchQuery: string) => {
+    setState((current) => ({ ...current, searchQuery }));
+  }, []);
+
   return {
     ...state,
     filteredGarments,
     setCategory,
+    setSearchQuery,
     reload,
     syncNow,
   };

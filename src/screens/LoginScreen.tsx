@@ -9,7 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../auth/AuthContext';
-import { RootStackParamList, UserRole } from '../types';
+import { RootStackParamList } from '../types';
 import { colors, radius, spacing } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
@@ -18,21 +18,18 @@ export function LoginScreen({ navigation }: Props) {
   const auth = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('user');
   const [error, setError] = useState('');
 
-  const roles: UserRole[] = ['user', 'vendor', 'admin'];
-
   const onSubmit = async () => {
-    const ok = await auth.login(email, password, role);
-    if (!ok) {
-      setError('Completa correo y contrasena.');
+    const loggedUser = await auth.login(email, password);
+    if (!loggedUser) {
+      setError(auth.lastError ?? 'No se pudo iniciar sesion.');
       return;
     }
 
-    if (role === 'user') navigation.replace('UserHome');
-    if (role === 'vendor') navigation.replace('VendorHome');
-    if (role === 'admin') navigation.replace('AdminHome');
+    if (loggedUser.role === 'user') navigation.replace('UserHome');
+    if (loggedUser.role === 'vendor') navigation.replace('VendorHome');
+    if (loggedUser.role === 'admin') navigation.replace('AdminHome');
   };
 
   return (
@@ -40,7 +37,7 @@ export function LoginScreen({ navigation }: Props) {
       <View style={styles.card}>
         <Text style={styles.eyebrow}>Outfit Catalog</Text>
         <Text style={styles.title}>Login</Text>
-        <Text style={styles.subtitle}>Accede segun tu rol para gestionar la app.</Text>
+        
 
         <TextInput
           style={styles.input}
@@ -58,20 +55,7 @@ export function LoginScreen({ navigation }: Props) {
           onChangeText={setPassword}
         />
 
-        <View style={styles.roleRow}>
-          {roles.map((item) => {
-            const active = role === item;
-            return (
-              <Pressable
-                key={item}
-                style={[styles.roleChip, active && styles.roleChipActive]}
-                onPress={() => setRole(item)}
-              >
-                <Text style={[styles.roleText, active && styles.roleTextActive]}>{item}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <Text style={styles.hint}>Inicia con una cuenta registrada para cargar su rol.</Text>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -126,30 +110,10 @@ const styles = StyleSheet.create({
     height: 46,
     paddingHorizontal: spacing.md,
   },
-  roleRow: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  roleChip: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.round,
-    paddingVertical: spacing.xs,
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-  },
-  roleChipActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary,
-  },
-  roleText: {
-    textTransform: 'capitalize',
-    color: colors.textSecondary,
-    fontWeight: '600',
-  },
-  roleTextActive: {
-    color: '#fff',
+  hint: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
   },
   error: {
     color: colors.error,
