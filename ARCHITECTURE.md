@@ -25,6 +25,13 @@ Presentation  ->  Domain  <-  Data
 
 ## Implementacion actual
 
+### Base de datos local
+
+- `expo-sqlite` maneja la persistencia local
+- `src/core/database/database.ts` centraliza la apertura, migraciones y seed inicial
+- Tablas actuales: `garments`, `looks`, `look_items` y `favorites`
+- El feature `garment` sigue consumiendo un repositorio; solo cambio el origen de datos
+
 ### Feature garment
 
 Domain:
@@ -40,6 +47,7 @@ Data:
 - `GarmentLocalDataSource` + `GarmentLocalDataSourceImpl`
 - `GarmentModel`
 - `GarmentRepositoryImpl`
+- Persistencia respaldada por SQLite en lugar de datos en memoria
 
 Presentation:
 
@@ -114,4 +122,4 @@ src/
 
 - Aplicar la misma estructura en `auth` y `look`
 - Introducir capa de errores tipados en domain/data
-- Incorporar tests unitarios por capa
+- Incorporar tests unitarios por capa y cobertura de migraciones SQLite

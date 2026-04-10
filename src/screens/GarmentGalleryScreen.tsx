@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   FlatList,
   Image,
@@ -9,9 +9,12 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../auth/AuthContext';
+import { FavoriteDao } from '../core/database/daos/FavoriteDao';
+import { getDatabase } from '../core/database/database';
 import { formatCOP } from '../features/garment/presentation/utils/formatCOP';
 import { useGarmentGalleryViewModel } from '../features/garment/presentation/viewmodels/GarmentGalleryViewModel';
 import { colors, radius, spacing } from '../theme';
@@ -21,13 +24,51 @@ type Props = NativeStackScreenProps<RootStackParamList, 'GarmentGallery'>;
 
 export function GarmentGalleryScreen({ navigation }: Props) {
   const auth = useAuth();
+  const favoriteDao = useMemo(() => new FavoriteDao(getDatabase), []);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const {
     categories,
     selectedCategory,
     filteredGarments,
     setCategory,
   } = useGarmentGalleryViewModel();
+
+  const loadFavorites = useCallback(async () => {
+    const favorites = await favoriteDao.list();
+    setFavoriteIds(
+      favorites
+        .filter((favorite) => favorite.entityType === 'garment')
+        .map((favorite) => favorite.entityId),
+    );
+  }, [favoriteDao]);
+
+  const toggleFavorite = useCallback(
+    async (garmentId: string) => {
+      const isFavorite = favoriteIds.includes(garmentId);
+
+      if (isFavorite) {
+        await favoriteDao.deleteByEntity('garment', garmentId);
+        setFavoriteIds((current) => current.filter((id) => id !== garmentId));
+        return;
+      }
+
+      await favoriteDao.upsert({
+        id: `fav-garment-${garmentId}`,
+        entityType: 'garment',
+        entityId: garmentId,
+        createdAt: new Date().toISOString(),
+      });
+      setFavoriteIds((current) => [...current, garmentId]);
+    },
+    [favoriteDao, favoriteIds],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      loadFavorites();
+    }, [loadFavorites]),
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
@@ -58,10 +99,22 @@ export function GarmentGalleryScreen({ navigation }: Props) {
             <Pressable style={styles.menuItem} onPress={() => setMenuVisible(false)}>
               <Text style={styles.menuItemText}>Mi catalogo</Text>
             </Pressable>
-            <Pressable style={styles.menuItem} onPress={() => setMenuVisible(false)}>
+            <Pressable
+              style={styles.menuItem}
+              onPress={() => {
+                setMenuVisible(false);
+                navigation.navigate('Looks');
+              }}
+            >
               <Text style={styles.menuItemText}>Colecciones</Text>
             </Pressable>
-            <Pressable style={styles.menuItem} onPress={() => setMenuVisible(false)}>
+            <Pressable
+              style={styles.menuItem}
+              onPress={() => {
+                setMenuVisible(false);
+                navigation.navigate('Favorites');
+              }}
+            >
               <Text style={styles.menuItemText}>Favoritos</Text>
             </Pressable>
             <Pressable
@@ -115,6 +168,14 @@ export function GarmentGalleryScreen({ navigation }: Props) {
             style={styles.card}
             onPress={() => navigation.navigate('GarmentDetail', { id: item.id })}
           >
+            <Pressable
+              style={styles.favoriteButton}
+              onPress={() => toggleFavorite(item.id)}
+            >
+              <Text style={styles.favoriteIcon}>
+                {favoriteIds.includes(item.id) ? '♥' : '♡'}
+              </Text>
+            </Pressable>
             <Image source={{ uri: item.imageUrl }} style={styles.cardImage} />
             <View style={styles.cardBody}>
               <Text style={styles.eyebrow}>{item.category}</Text>
@@ -249,6 +310,23 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     overflow: 'hidden',
     backgroundColor: colors.surface,
+  },
+  favoriteButton: {
+    position: 'absolute',
+    zIndex: 1,
+    top: spacing.sm,
+    right: spacing.sm,
+    width: 30,
+    height: 30,
+    borderRadius: radius.round,
+    backgroundColor: '#00000088',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  favoriteIcon: {
+    color: '#fff',
+    fontSize: 16,
+    lineHeight: 18,
   },
   cardImage: {
     width: '100%',
