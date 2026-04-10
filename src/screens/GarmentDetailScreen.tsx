@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   Image,
   Pressable,
@@ -7,8 +7,11 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { FavoriteDao } from '../core/database/daos/FavoriteDao';
+import { getDatabase } from '../core/database/database';
 import { formatCOP } from '../features/garment/presentation/utils/formatCOP';
 import { useGarmentDetailViewModel } from '../features/garment/presentation/viewmodels/GarmentDetailViewModel';
 import { colors, radius, spacing } from '../theme';
@@ -18,6 +21,39 @@ type Props = NativeStackScreenProps<RootStackParamList, 'GarmentDetail'>;
 
 export function GarmentDetailScreen({ route, navigation }: Props) {
   const { garment } = useGarmentDetailViewModel(route.params.id);
+  const favoriteDao = useMemo(() => new FavoriteDao(getDatabase), []);
+  const [isFavorite, setIsFavorite] = useState(false);
+
+  const loadFavorite = useCallback(async () => {
+    const favorite = await favoriteDao.getByEntity('garment', route.params.id);
+    setIsFavorite(Boolean(favorite));
+  }, [favoriteDao, route.params.id]);
+
+  const toggleFavorite = useCallback(async () => {
+    if (!garment) {
+      return;
+    }
+
+    if (isFavorite) {
+      await favoriteDao.deleteByEntity('garment', garment.id);
+      setIsFavorite(false);
+      return;
+    }
+
+    await favoriteDao.upsert({
+      id: `fav-garment-${garment.id}`,
+      entityType: 'garment',
+      entityId: garment.id,
+      createdAt: new Date().toISOString(),
+    });
+    setIsFavorite(true);
+  }, [favoriteDao, garment, isFavorite]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadFavorite();
+    }, [loadFavorite]),
+  );
 
   if (!garment) {
     return (
@@ -46,6 +82,15 @@ export function GarmentDetailScreen({ route, navigation }: Props) {
 
         <Text style={styles.name}>{garment.name}</Text>
         <Text style={styles.description}>{garment.description}</Text>
+
+        <Pressable
+          style={[styles.favoriteButton, isFavorite && styles.favoriteButtonActive]}
+          onPress={toggleFavorite}
+        >
+          <Text style={[styles.favoriteButtonText, isFavorite && styles.favoriteButtonTextActive]}>
+            {isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+          </Text>
+        </Pressable>
 
         <View style={styles.chipsWrap}>
           <InfoChip label="Talla" value={garment.size} />
@@ -115,6 +160,27 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+  },
+  favoriteButton: {
+    marginTop: spacing.md,
+    height: 46,
+    borderRadius: radius.round,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  favoriteButtonActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  favoriteButtonText: {
+    color: colors.textPrimary,
+    fontWeight: '700',
+  },
+  favoriteButtonTextActive: {
+    color: '#fff',
   },
   chip: {
     width: '48%',

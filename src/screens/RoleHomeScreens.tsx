@@ -27,6 +27,8 @@ export function UserHomeScreen({ navigation }: UserProps) {
       ]}
       primaryActionLabel="Explorar catalogo"
       onPrimaryAction={() => navigation.navigate('GarmentGallery')}
+      secondaryActionLabel="Ver base de datos"
+      onSecondaryAction={() => navigation.navigate('DatabaseInspector')}
       onLogout={() => {
         auth.logout();
         navigation.replace('Login');
@@ -54,6 +56,8 @@ export function VendorHomeScreen({ navigation }: VendorProps) {
       ]}
       primaryActionLabel="Ir al catalogo"
       onPrimaryAction={() => navigation.navigate('GarmentGallery')}
+      secondaryActionLabel="Ver base de datos"
+      onSecondaryAction={() => navigation.navigate('DatabaseInspector')}
       onLogout={() => {
         auth.logout();
         navigation.replace('Login');
@@ -81,6 +85,8 @@ export function AdminHomeScreen({ navigation }: AdminProps) {
       ]}
       primaryActionLabel="Ver catalogo completo"
       onPrimaryAction={() => navigation.navigate('GarmentGallery')}
+      secondaryActionLabel="Ver base de datos"
+      onSecondaryAction={() => navigation.navigate('DatabaseInspector')}
       onLogout={() => {
         auth.logout();
         navigation.replace('Login');

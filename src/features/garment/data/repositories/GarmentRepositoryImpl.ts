@@ -12,13 +12,11 @@ export class GarmentRepositoryImpl implements GarmentRepository {
   }
 
   async getGarmentById(id: string): Promise<Garment | null> {
-    const garments = await this.getGarments();
-    return garments.find((item) => item.id === id) ?? null;
+    const garment = await this.localDataSource.getGarmentById(id);
+    return garment ? toGarmentEntity(garment) : null;
   }
 
   async getCategories(): Promise<string[]> {
-    const garments = await this.getGarments();
-    const categories = Array.from(new Set(garments.map((item) => item.category)));
-    return ['Todas', ...categories];
+    return this.localDataSource.getCategories();
   }
 }

@@ -11,6 +11,9 @@ import {
 } from './src/screens/RoleHomeScreens';
 import { GarmentGalleryScreen } from './src/screens/GarmentGalleryScreen';
 import { GarmentDetailScreen } from './src/screens/GarmentDetailScreen';
+import { LooksScreen } from './src/screens/LooksScreen';
+import { FavoritesScreen } from './src/screens/FavoritesScreen';
+import { DatabaseInspectorScreen } from './src/screens/DatabaseInspectorScreen';
 import { RootStackParamList } from './src/types';
 import { initDependencies } from './src/core/di/injectionContainer';
 
@@ -37,6 +40,9 @@ export default function App() {
           <Stack.Screen name="AdminHome" component={AdminHomeScreen} />
           <Stack.Screen name="GarmentGallery" component={GarmentGalleryScreen} />
           <Stack.Screen name="GarmentDetail" component={GarmentDetailScreen} />
+          <Stack.Screen name="Looks" component={LooksScreen} />
+          <Stack.Screen name="Favorites" component={FavoritesScreen} />
+          <Stack.Screen name="DatabaseInspector" component={DatabaseInspectorScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </AuthProvider>
