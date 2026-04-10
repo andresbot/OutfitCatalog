@@ -22,6 +22,7 @@ Outfit Catalog es una aplicacion movil construida con React Native y Expo para g
 - Node.js LTS
 - npm 10+
 - Expo Go (opcional para dispositivo fisico)
+- Proyecto Firebase con Firestore habilitado (opcional para sync remota)
 
 ## Instalacion
 
@@ -40,6 +41,35 @@ Scripts utiles:
 - `npm run android`
 - `npm run ios`
 - `npm run web`
+- `npm run build`
+
+## Configuracion Firebase (US-06)
+
+La sincronizacion remota usa Firestore via variables de entorno `EXPO_PUBLIC_*`.
+
+Define en tu entorno:
+
+- `EXPO_PUBLIC_FIREBASE_API_KEY`
+- `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN`
+- `EXPO_PUBLIC_FIREBASE_PROJECT_ID`
+- `EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET`
+- `EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
+- `EXPO_PUBLIC_FIREBASE_APP_ID`
+
+Coleccion esperada en Firestore:
+
+- `garments`
+
+Campos por documento:
+
+- `name` (string)
+- `category` (string)
+- `price` (number)
+- `imageUrl` (string)
+- `description` (string)
+- `size` (string)
+- `color` (string)
+- `stock` (number)
 
 ## Estructura del codigo
 
