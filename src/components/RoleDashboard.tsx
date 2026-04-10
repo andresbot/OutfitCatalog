@@ -20,6 +20,8 @@ type Props = {
   quick: Quick[];
   primaryActionLabel: string;
   onPrimaryAction: () => void;
+  secondaryActionLabel?: string;
+  onSecondaryAction?: () => void;
   onLogout: () => void;
 };
 
@@ -31,6 +33,8 @@ export function RoleDashboard({
   quick,
   primaryActionLabel,
   onPrimaryAction,
+  secondaryActionLabel,
+  onSecondaryAction,
   onLogout,
 }: Props) {
   return (
@@ -52,6 +56,12 @@ export function RoleDashboard({
         <Pressable style={styles.primaryButton} onPress={onPrimaryAction}>
           <Text style={styles.primaryButtonText}>{primaryActionLabel}</Text>
         </Pressable>
+
+        {secondaryActionLabel && onSecondaryAction ? (
+          <Pressable style={styles.secondaryButton} onPress={onSecondaryAction}>
+            <Text style={styles.secondaryButtonText}>{secondaryActionLabel}</Text>
+          </Pressable>
+        ) : null}
 
         <View style={styles.statsRow}>
           {stats.map((item) => (
@@ -145,6 +155,21 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  secondaryButton: {
+    height: 48,
+    borderRadius: radius.round,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  secondaryButtonText: {
+    color: colors.textPrimary,
     fontWeight: '700',
     fontSize: 15,
   },

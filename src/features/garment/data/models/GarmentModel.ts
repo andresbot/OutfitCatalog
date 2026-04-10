@@ -1,4 +1,5 @@
 import { Garment } from '../../domain/entities/Garment';
+import { GarmentRow } from '../../../../core/database/types';
 
 export interface GarmentModel {
   id: string;
@@ -12,6 +13,20 @@ export interface GarmentModel {
   stock: number;
 }
 
+export function toGarmentModel(row: GarmentRow): GarmentModel {
+  return {
+    id: row.id,
+    name: row.name,
+    category: row.category,
+    price: row.price,
+    imageUrl: row.imageUrl,
+    description: row.description,
+    size: row.size,
+    color: row.color,
+    stock: row.stock,
+  };
+}
+
 export function toGarmentEntity(model: GarmentModel): Garment {
   return {
     id: model.id,
@@ -23,5 +38,15 @@ export function toGarmentEntity(model: GarmentModel): Garment {
     size: model.size,
     color: model.color,
     stock: model.stock,
+  };
+}
+
+export function toGarmentRow(model: GarmentModel): GarmentRow {
+  const now = new Date().toISOString();
+
+  return {
+    ...model,
+    createdAt: now,
+    updatedAt: now,
   };
 }

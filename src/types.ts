@@ -15,4 +15,7 @@ export type RootStackParamList = {
   AdminHome: undefined;
   GarmentGallery: undefined;
   GarmentDetail: { id: string };
+  Looks: undefined;
+  Favorites: undefined;
+  DatabaseInspector: undefined;
 };
