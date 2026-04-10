@@ -247,6 +247,11 @@ export function createInMemorySqliteClient(initialState?: Partial<DatabaseState>
         return { rowsAffected: before - state.favorites.length, lastInsertRowId: 0 };
       }
 
+      if (normalizedSql.includes('INSERT INTO schema_meta')) {
+        state.schemaMeta[String(params[0])] = String(params[1]);
+        return { rowsAffected: 1, lastInsertRowId: 1 };
+      }
+
       if (normalizedSql.includes('DELETE FROM schema_meta')) {
         state.schemaMeta = {};
       }

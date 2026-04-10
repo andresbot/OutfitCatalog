@@ -41,13 +41,17 @@ Domain:
 - `GetGarmentsUseCase`
 - `GetGarmentByIdUseCase`
 - `GetGarmentCategoriesUseCase`
+- `SyncGarmentsUseCase`
+- `GetGarmentSyncInfoUseCase`
 
 Data:
 
 - `GarmentLocalDataSource` + `GarmentLocalDataSourceImpl`
+- `GarmentRemoteDataSource` + `GarmentRemoteDataSourceImpl` (Firestore)
 - `GarmentModel`
 - `GarmentRepositoryImpl`
 - Persistencia respaldada por SQLite en lugar de datos en memoria
+- Estrategia offline-first: si Firestore falla, se mantiene cache local
 
 Presentation:
 
@@ -109,6 +113,14 @@ src/
 3. El caso de uso consulta el contrato del repositorio.
 4. El repositorio concreto obtiene y transforma datos del datasource.
 5. El resultado vuelve al ViewModel y luego a la UI.
+
+### Sincronizacion remota (US-06)
+
+1. `App.tsx` ejecuta `SyncGarmentsUseCase` al abrir la app.
+2. El repositorio intenta leer la coleccion `garments` en Firestore.
+3. Si hay conexion y configuracion, hace upsert en SQLite y guarda `garments_last_sync_at` en `schema_meta`.
+4. Si falla la red o Firestore no esta configurado, mantiene lectura desde cache local SQLite.
+5. `GarmentGalleryScreen` muestra indicador de origen (`Remoto`, `Cache local`, `Firestore no configurado`) y ultima sync.
 
 ## Convenciones
 

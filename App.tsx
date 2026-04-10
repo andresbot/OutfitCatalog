@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -15,13 +16,23 @@ import { LooksScreen } from './src/screens/LooksScreen';
 import { FavoritesScreen } from './src/screens/FavoritesScreen';
 import { DatabaseInspectorScreen } from './src/screens/DatabaseInspectorScreen';
 import { RootStackParamList } from './src/types';
-import { initDependencies } from './src/core/di/injectionContainer';
+import { getIt } from './src/core/di/getIt';
+import { DI_TOKENS, initDependencies } from './src/core/di/injectionContainer';
+import { SyncGarmentsUseCase } from './src/features/garment/domain/usecases/SyncGarmentsUseCase';
 
 initDependencies();
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
+  useEffect(() => {
+    getIt.get<SyncGarmentsUseCase>(DI_TOKENS.syncGarmentsUseCase)
+      .execute()
+      .catch(() => {
+        // Startup sync is best-effort and should not block app access.
+      });
+  }, []);
+
   return (
     <AuthProvider>
       <NavigationContainer>
