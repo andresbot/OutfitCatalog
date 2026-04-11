@@ -309,6 +309,17 @@ export function createInMemorySqliteClient(initialState?: Partial<DatabaseState>
     async getAllAsync<T>(sql: string, ...params: Array<string | number | null>): Promise<T[]> {
       const normalizedSql = normalizeSql(sql);
 
+      if (normalizedSql.includes('FROM garments WHERE LOWER(name) LIKE ? OR LOWER(id) LIKE ?')) {
+        const rawTerm = String(params[0] ?? '').toLowerCase();
+        const normalizedTerm = rawTerm.replace(/%/g, '');
+        const matches = state.garments.filter(
+          (garment) =>
+            garment.name.toLowerCase().includes(normalizedTerm) ||
+            garment.id.toLowerCase().includes(normalizedTerm),
+        );
+        return orderGarments(clone(matches)) as T[];
+      }
+
       if (normalizedSql.includes('FROM garments')) {
         return orderGarments(clone(state.garments)) as T[];
       }

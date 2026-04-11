@@ -16,6 +16,11 @@ export class GarmentRepositoryImpl implements GarmentRepository {
     return models.map(toGarmentEntity);
   }
 
+  async searchGarments(query: string): Promise<Garment[]> {
+    const models = await this.localDataSource.searchGarments(query);
+    return models.map(toGarmentEntity);
+  }
+
   async getGarmentById(id: string): Promise<Garment | null> {
     const garment = await this.localDataSource.getGarmentById(id);
     return garment ? toGarmentEntity(garment) : null;

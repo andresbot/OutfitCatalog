@@ -20,6 +20,24 @@ describe('GarmentDao', () => {
       createdAt: '2026-04-09T10:00:00.000Z',
       updatedAt: '2026-04-09T10:00:00.000Z',
     });
+    await dao.create({
+      id: 'sku-200',
+      name: 'Pantalon arena',
+      category: 'Pantalones',
+      price: 180000,
+      imageUrl: 'https://example.com/pants.jpg',
+      description: 'Pantalon de prueba',
+      size: 'L',
+      color: 'Beige',
+      stock: 6,
+      createdAt: '2026-04-09T10:05:00.000Z',
+      updatedAt: '2026-04-09T10:05:00.000Z',
+    });
+
+    expect(await dao.search('blazer')).toHaveLength(1);
+    expect((await dao.search('blazer'))[0].id).toBe('g-100');
+    expect(await dao.search('sku-')).toHaveLength(1);
+    expect((await dao.search('sku-'))[0].name).toBe('Pantalon arena');
 
     expect((await dao.getById('g-100'))?.name).toBe('Blazer noir');
 
@@ -38,10 +56,11 @@ describe('GarmentDao', () => {
     });
 
     expect((await dao.getById('g-100'))?.name).toBe('Blazer noir premium');
-    expect(await dao.listCategories()).toEqual(['Todas', 'Blazers']);
-    expect((await dao.list()).length).toBe(1);
+    expect(await dao.listCategories()).toEqual(['Todas', 'Blazers', 'Pantalones']);
+    expect((await dao.list()).length).toBe(2);
 
     await dao.delete('g-100');
+    await dao.delete('sku-200');
     expect(await dao.getById('g-100')).toBeNull();
   });
 });

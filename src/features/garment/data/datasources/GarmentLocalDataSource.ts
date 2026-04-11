@@ -9,6 +9,7 @@ const LAST_SYNC_SOURCE_KEY = 'garments_last_sync_source';
 
 export interface GarmentLocalDataSource {
   getGarments(): Promise<GarmentModel[]>;
+  searchGarments(query: string): Promise<GarmentModel[]>;
   getGarmentById(id: string): Promise<GarmentModel | null>;
   getCategories(): Promise<string[]>;
   upsertGarment(garment: GarmentModel): Promise<void>;
@@ -26,6 +27,15 @@ export class GarmentLocalDataSourceImpl implements GarmentLocalDataSource {
 
   async getGarments(): Promise<GarmentModel[]> {
     return (await this.garmentDao.list()).map(toGarmentModel);
+  }
+
+  async searchGarments(query: string): Promise<GarmentModel[]> {
+    const normalizedQuery = query.trim();
+    if (!normalizedQuery) {
+      return this.getGarments();
+    }
+
+    return (await this.garmentDao.search(normalizedQuery)).map(toGarmentModel);
   }
 
   async getGarmentById(id: string): Promise<GarmentModel | null> {

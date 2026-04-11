@@ -15,6 +15,19 @@ class FakeLocalDataSource implements GarmentLocalDataSource {
     return this.garments;
   }
 
+  async searchGarments(query: string): Promise<GarmentModel[]> {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return this.garments;
+    }
+
+    return this.garments.filter(
+      (garment) =>
+        garment.name.toLowerCase().includes(normalizedQuery) ||
+        garment.id.toLowerCase().includes(normalizedQuery),
+    );
+  }
+
   async getGarmentById(id: string): Promise<GarmentModel | null> {
     return this.garments.find((garment) => garment.id === id) ?? null;
   }

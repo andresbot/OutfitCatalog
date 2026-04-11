@@ -25,15 +25,15 @@ export function RegisterScreen({ navigation }: Props) {
   const roles: UserRole[] = ['user', 'vendor', 'admin'];
 
   const onSubmit = async () => {
-    const ok = await auth.register(name, email, password, role);
-    if (!ok) {
-      setError('Verifica nombre, correo y contrasena (minimo 6).');
+    const registeredUser = await auth.register(name, email, password, role);
+    if (!registeredUser) {
+      setError(auth.lastError ?? 'No se pudo crear la cuenta.');
       return;
     }
 
-    if (role === 'user') navigation.replace('UserHome');
-    if (role === 'vendor') navigation.replace('VendorHome');
-    if (role === 'admin') navigation.replace('AdminHome');
+    if (registeredUser.role === 'user') navigation.replace('UserHome');
+    if (registeredUser.role === 'vendor') navigation.replace('VendorHome');
+    if (registeredUser.role === 'admin') navigation.replace('AdminHome');
   };
 
   return (

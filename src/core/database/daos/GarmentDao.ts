@@ -28,6 +28,32 @@ export class GarmentDao {
     );
   }
 
+  async search(term: string): Promise<GarmentRow[]> {
+    const database = await this.database();
+    const normalizedTerm = `%${term.trim().toLowerCase()}%`;
+
+    return database.getAllAsync<GarmentRow>(
+      `SELECT
+        id,
+        name,
+        category,
+        price,
+        image_url AS imageUrl,
+        description,
+        size,
+        color,
+        stock,
+        created_at AS createdAt,
+        updated_at AS updatedAt
+      FROM garments
+      WHERE LOWER(name) LIKE ?
+         OR LOWER(id) LIKE ?
+      ORDER BY category ASC, name ASC`,
+      normalizedTerm,
+      normalizedTerm,
+    );
+  }
+
   async getById(id: string): Promise<GarmentRow | null> {
     const database = await this.database();
     return database.getFirstAsync<GarmentRow>(

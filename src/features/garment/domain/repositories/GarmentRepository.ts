@@ -3,6 +3,7 @@ import { GarmentSyncInfo } from '../entities/GarmentSyncInfo';
 
 export interface GarmentRepository {
   getGarments(): Promise<Garment[]>;
+  searchGarments(query: string): Promise<Garment[]>;
   getGarmentById(id: string): Promise<Garment | null>;
   getCategories(): Promise<string[]>;
   syncGarments(): Promise<GarmentSyncInfo>;

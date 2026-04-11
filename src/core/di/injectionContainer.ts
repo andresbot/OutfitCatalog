@@ -12,6 +12,7 @@ import { GetGarmentByIdUseCase } from '../../features/garment/domain/usecases/Ge
 import { GetGarmentCategoriesUseCase } from '../../features/garment/domain/usecases/GetGarmentCategoriesUseCase';
 import { GetGarmentsUseCase } from '../../features/garment/domain/usecases/GetGarmentsUseCase';
 import { GetGarmentSyncInfoUseCase } from '../../features/garment/domain/usecases/GetGarmentSyncInfoUseCase';
+import { SearchGarmentsUseCase } from '../../features/garment/domain/usecases/SearchGarmentsUseCase';
 import { SyncGarmentsUseCase } from '../../features/garment/domain/usecases/SyncGarmentsUseCase';
 import { getIt } from './getIt';
 
@@ -22,6 +23,7 @@ export const DI_TOKENS = {
   getGarmentsUseCase: 'getGarmentsUseCase',
   getGarmentByIdUseCase: 'getGarmentByIdUseCase',
   getGarmentCategoriesUseCase: 'getGarmentCategoriesUseCase',
+  searchGarmentsUseCase: 'searchGarmentsUseCase',
   syncGarmentsUseCase: 'syncGarmentsUseCase',
   getGarmentSyncInfoUseCase: 'getGarmentSyncInfoUseCase',
 } as const;
@@ -64,6 +66,11 @@ export function initDependencies(): void {
     new GetGarmentCategoriesUseCase(
       getIt.get<GarmentRepository>(DI_TOKENS.garmentRepository),
     ),
+  );
+
+  getIt.registerSingleton(
+    DI_TOKENS.searchGarmentsUseCase,
+    new SearchGarmentsUseCase(getIt.get<GarmentRepository>(DI_TOKENS.garmentRepository)),
   );
 
   getIt.registerSingleton(
