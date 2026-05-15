@@ -3,6 +3,8 @@ import { AuthUser, UserRole } from '../types';
 import {
   registerWithFirebase,
   signInWithFirebase,
+  signInWithGoogleFirebase,
+  signInWithGoogleWeb,
   signOutFirebase,
   toReadableFirebaseError,
 } from './firebaseAuth';
@@ -17,6 +19,8 @@ type AuthContextValue = {
     password: string,
     role: UserRole,
   ) => Promise<AuthUser | null>;
+  loginWithGoogle: (idToken: string | null, accessToken: string | null) => Promise<AuthUser | null>;
+  loginWithGoogleWeb: () => Promise<AuthUser | null>;
   logout: () => void;
 };
 
@@ -69,6 +73,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return null;
           }
 
+          setLastError(null);
+          setUser(nextUser);
+          return nextUser;
+        } catch (error) {
+          setLastError(toReadableFirebaseError(error));
+          return null;
+        }
+      },
+      async loginWithGoogleWeb() {
+        try {
+          const nextUser = await signInWithGoogleWeb();
+          if (!nextUser) {
+            setLastError('No se pudo iniciar sesion con Google.');
+            return null;
+          }
+          setLastError(null);
+          setUser(nextUser);
+          return nextUser;
+        } catch (error) {
+          setLastError(toReadableFirebaseError(error));
+          return null;
+        }
+      },
+      async loginWithGoogle(idToken, accessToken) {
+        try {
+          const nextUser = await signInWithGoogleFirebase(idToken, accessToken);
+          if (!nextUser) {
+            setLastError('No se pudo iniciar sesion con Google.');
+            return null;
+          }
           setLastError(null);
           setUser(nextUser);
           return nextUser;

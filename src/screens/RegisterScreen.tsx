@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -8,11 +10,21 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
 import { useAuth } from '../auth/AuthContext';
 import { RootStackParamList, UserRole } from '../types';
 import { colors, radius, spacing } from '../theme';
 
+WebBrowser.maybeCompleteAuthSession();
+
 type Props = NativeStackScreenProps<RootStackParamList, 'Register'>;
+
+function navigateByRole(role: string, navigation: Props['navigation']) {
+  if (role === 'user') navigation.replace('UserHome');
+  if (role === 'vendor') navigation.replace('VendorHome');
+  if (role === 'admin') navigation.replace('AdminHome');
+}
 
 export function RegisterScreen({ navigation }: Props) {
   const auth = useAuth();
@@ -21,8 +33,44 @@ export function RegisterScreen({ navigation }: Props) {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<UserRole>('user');
   const [error, setError] = useState('');
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const roles: UserRole[] = ['user', 'vendor', 'admin'];
+
+  const [, response, promptAsync] = Google.useAuthRequest({
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+  });
+
+  useEffect(() => {
+    if (response?.type !== 'success') return;
+    const { idToken = null, accessToken = null } = response.authentication ?? {};
+    setGoogleLoading(true);
+    auth.loginWithGoogle(idToken, accessToken).then((loggedUser) => {
+      setGoogleLoading(false);
+      if (!loggedUser) {
+        setError(auth.lastError ?? 'No se pudo iniciar sesion con Google.');
+        return;
+      }
+      navigateByRole(loggedUser.role, navigation);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [response]);
+
+  const onGooglePress = async () => {
+    if (Platform.OS === 'web') {
+      setGoogleLoading(true);
+      const loggedUser = await auth.loginWithGoogleWeb();
+      setGoogleLoading(false);
+      if (!loggedUser) {
+        setError(auth.lastError ?? 'No se pudo iniciar sesion con Google.');
+        return;
+      }
+      navigateByRole(loggedUser.role, navigation);
+    } else {
+      void promptAsync();
+    }
+  };
 
   const onSubmit = async () => {
     const registeredUser = await auth.register(name, email, password, role);
@@ -30,10 +78,7 @@ export function RegisterScreen({ navigation }: Props) {
       setError(auth.lastError ?? 'No se pudo crear la cuenta.');
       return;
     }
-
-    if (registeredUser.role === 'user') navigation.replace('UserHome');
-    if (registeredUser.role === 'vendor') navigation.replace('VendorHome');
-    if (registeredUser.role === 'admin') navigation.replace('AdminHome');
+    navigateByRole(registeredUser.role, navigation);
   };
 
   return (
@@ -83,6 +128,27 @@ export function RegisterScreen({ navigation }: Props) {
 
         <Pressable style={styles.primaryButton} onPress={onSubmit}>
           <Text style={styles.primaryButtonText}>Crear cuenta</Text>
+        </Pressable>
+
+        <View style={styles.dividerRow}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>o</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        <Pressable
+          style={[styles.googleButton, googleLoading && styles.googleButtonDisabled]}
+          onPress={onGooglePress}
+          disabled={googleLoading}
+        >
+          {googleLoading ? (
+            <ActivityIndicator size="small" color={colors.textSecondary} />
+          ) : (
+            <>
+              <Text style={styles.googleIcon}>G</Text>
+              <Text style={styles.googleButtonText}>Continuar con Google</Text>
+            </>
+          )}
         </Pressable>
 
         <Pressable onPress={() => navigation.replace('Login')}>
@@ -171,6 +237,43 @@ const styles = StyleSheet.create({
   link: {
     textAlign: 'center',
     color: colors.secondary,
+    fontWeight: '600',
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.border,
+  },
+  dividerText: {
+    color: colors.textMuted,
+    fontSize: 12,
+  },
+  googleButton: {
+    height: 48,
+    borderRadius: radius.round,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  googleButtonDisabled: {
+    opacity: 0.6,
+  },
+  googleIcon: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#4285F4',
+  },
+  googleButtonText: {
+    color: colors.textPrimary,
     fontWeight: '600',
   },
 });

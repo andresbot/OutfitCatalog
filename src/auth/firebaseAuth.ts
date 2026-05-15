@@ -19,6 +19,9 @@ type FirebaseRuntime = {
   createUserWithEmailAndPassword: any;
   signInWithEmailAndPassword: any;
   signOut: any;
+  GoogleAuthProvider: any;
+  signInWithCredential: any;
+  signInWithPopup: any;
   getFirestore: any;
   doc: any;
   getDoc: any;
@@ -71,6 +74,14 @@ export function toReadableFirebaseError(error: unknown): string {
     return 'No hay conexion con Firebase. Revisa internet e intenta de nuevo.';
   }
 
+  if (code === 'auth/account-exists-with-different-credential') {
+    return 'Ya existe una cuenta con ese correo usando otro metodo de acceso.';
+  }
+
+  if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
+    return 'Se cancelo el inicio de sesion con Google.';
+  }
+
   return firebaseError?.message ?? 'No se pudo completar la operacion con Firebase.';
 }
 
@@ -119,6 +130,9 @@ function tryLoadRuntime(): FirebaseRuntime | null {
       createUserWithEmailAndPassword: auth.createUserWithEmailAndPassword,
       signInWithEmailAndPassword: auth.signInWithEmailAndPassword,
       signOut: auth.signOut,
+      GoogleAuthProvider: auth.GoogleAuthProvider,
+      signInWithCredential: auth.signInWithCredential,
+      signInWithPopup: auth.signInWithPopup,
       getFirestore: firestore.getFirestore,
       doc: firestore.doc,
       getDoc: firestore.getDoc,
@@ -284,6 +298,57 @@ export async function registerWithFirebase(
     name,
     email: email.trim().toLowerCase(),
     role,
+  };
+}
+
+export async function signInWithGoogleWeb(): Promise<AuthUser | null> {
+  const ctx = await getFirebaseContext();
+  if (!ctx) return null;
+
+  const provider = new ctx.runtime.GoogleAuthProvider();
+  const result = await ctx.runtime.signInWithPopup(ctx.auth, provider);
+  const { uid } = result.user;
+  const fallbackEmail = result.user.email ?? '';
+  const fallbackName = result.user.displayName ?? fallbackEmail.split('@')[0] ?? 'Usuario';
+
+  const profile = await ensureUserProfile(ctx, uid, {
+    name: fallbackName,
+    email: fallbackEmail,
+    role: 'user',
+  });
+
+  return {
+    id: uid,
+    name: profile.name || fallbackName,
+    email: profile.email || fallbackEmail,
+    role: profile.role,
+  };
+}
+
+export async function signInWithGoogleFirebase(
+  idToken: string | null,
+  accessToken: string | null,
+): Promise<AuthUser | null> {
+  const ctx = await getFirebaseContext();
+  if (!ctx) return null;
+
+  const credential = ctx.runtime.GoogleAuthProvider.credential(idToken, accessToken);
+  const result = await ctx.runtime.signInWithCredential(ctx.auth, credential);
+  const { uid } = result.user;
+  const fallbackEmail = result.user.email ?? '';
+  const fallbackName = result.user.displayName ?? fallbackEmail.split('@')[0] ?? 'Usuario';
+
+  const profile = await ensureUserProfile(ctx, uid, {
+    name: fallbackName,
+    email: fallbackEmail,
+    role: 'user',
+  });
+
+  return {
+    id: uid,
+    name: profile.name || fallbackName,
+    email: profile.email || fallbackEmail,
+    role: profile.role,
   };
 }
 
