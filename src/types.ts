@@ -13,9 +13,11 @@ export type RootStackParamList = {
   UserHome: undefined;
   VendorHome: undefined;
   AdminHome: undefined;
-  GarmentGallery: undefined;
+  GarmentGallery: { selectionMode?: boolean } | undefined;
   GarmentDetail: { id: string };
   Looks: undefined;
+  LookDetail: { lookId: string };
+  CreateLookPreview: { garmentIds: string[] };
   Favorites: undefined;
   DatabaseInspector: undefined;
 };

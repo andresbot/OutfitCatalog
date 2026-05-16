@@ -14,6 +14,12 @@ import { GetGarmentsUseCase } from '../../features/garment/domain/usecases/GetGa
 import { GetGarmentSyncInfoUseCase } from '../../features/garment/domain/usecases/GetGarmentSyncInfoUseCase';
 import { SearchGarmentsUseCase } from '../../features/garment/domain/usecases/SearchGarmentsUseCase';
 import { SyncGarmentsUseCase } from '../../features/garment/domain/usecases/SyncGarmentsUseCase';
+import { LookDao } from '../../core/database/daos/LookDao';
+import { LookItemDao } from '../../core/database/daos/LookItemDao';
+import { getDatabase } from '../../core/database/database';
+import { LookRepositoryImpl } from '../../features/look/data/repositories/LookRepositoryImpl';
+import { LookRepository } from '../../features/look/domain/repositories/LookRepository';
+import { CreateLookUseCase } from '../../features/look/domain/usecases/CreateLookUseCase';
 import { getIt } from './getIt';
 
 export const DI_TOKENS = {
@@ -26,6 +32,8 @@ export const DI_TOKENS = {
   searchGarmentsUseCase: 'searchGarmentsUseCase',
   syncGarmentsUseCase: 'syncGarmentsUseCase',
   getGarmentSyncInfoUseCase: 'getGarmentSyncInfoUseCase',
+  lookRepository: 'lookRepository',
+  createLookUseCase: 'createLookUseCase',
 } as const;
 
 export function initDependencies(): void {
@@ -83,5 +91,15 @@ export function initDependencies(): void {
     new GetGarmentSyncInfoUseCase(
       getIt.get<GarmentRepository>(DI_TOKENS.garmentRepository),
     ),
+  );
+
+  getIt.registerSingleton<LookRepository>(
+    DI_TOKENS.lookRepository,
+    new LookRepositoryImpl(new LookDao(getDatabase), new LookItemDao(getDatabase)),
+  );
+
+  getIt.registerSingleton(
+    DI_TOKENS.createLookUseCase,
+    new CreateLookUseCase(getIt.get<LookRepository>(DI_TOKENS.lookRepository)),
   );
 }

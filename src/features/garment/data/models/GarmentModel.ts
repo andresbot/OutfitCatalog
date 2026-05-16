@@ -1,5 +1,6 @@
 import { Garment } from '../../domain/entities/Garment';
 import { GarmentRow } from '../../../../core/database/types';
+import { resolveImageUrl } from '../../../../core/config/imageConfig';
 
 export interface GarmentModel {
   id: string;
@@ -33,7 +34,7 @@ export function toGarmentEntity(model: GarmentModel): Garment {
     name: model.name,
     category: model.category,
     price: model.price,
-    imageUrl: model.imageUrl,
+    imageUrl: resolveImageUrl(model.imageUrl) ?? '',
     description: model.description,
     size: model.size,
     color: model.color,

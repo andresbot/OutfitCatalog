@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,7 +24,7 @@ type LookCard = {
   name: string;
   description: string;
   itemCount: number;
-  updatedAt: string;
+  coverImages: string[];
 };
 
 export function LooksScreen({ navigation }: Props) {
@@ -32,85 +33,34 @@ export function LooksScreen({ navigation }: Props) {
   const garmentDao = useMemo(() => new GarmentDao(getDatabase), []);
 
   const [looks, setLooks] = useState<LookCard[]>([]);
-  const [message, setMessage] = useState<string>('');
 
   const loadLooks = useCallback(async () => {
     const rows = await lookDao.list();
     const cards = await Promise.all(
       rows.map(async (look) => {
         const items = await lookItemDao.listByLookId(look.id);
+        const garmentResults = await Promise.all(
+          items.slice(0, 4).map((item) => garmentDao.getById(item.garmentId)),
+        );
+        const coverImages = garmentResults
+          .filter((g): g is NonNullable<typeof g> => g !== null)
+          .map((g) => g.imageUrl);
 
         return {
           id: look.id,
           name: look.name,
           description: look.description,
           itemCount: items.length,
-          updatedAt: look.updatedAt,
+          coverImages,
         };
       }),
     );
-
     setLooks(cards);
-  }, [lookDao, lookItemDao]);
-
-  const createLook = useCallback(async () => {
-    const garments = await garmentDao.list();
-
-    if (!garments.length) {
-      setMessage('No hay prendas disponibles para crear un look.');
-      return;
-    }
-
-    const now = new Date();
-    const lookId = `look-${now.getTime()}`;
-    const nowIso = now.toISOString();
-
-    await lookDao.create({
-      id: lookId,
-      name: `Look ${looks.length + 1}`,
-      description: 'Look creado desde la app.',
-      coverImageUrl: garments[0].imageUrl,
-      createdAt: nowIso,
-      updatedAt: nowIso,
-    });
-
-    await lookItemDao.replaceForLook(
-      lookId,
-      garments.slice(0, 3).map((garment, index) => ({
-        id: `${lookId}-item-${index + 1}`,
-        lookId,
-        garmentId: garment.id,
-        position: index + 1,
-      })),
-    );
-
-    setMessage('Look creado correctamente.');
-    await loadLooks();
-  }, [garmentDao, lookDao, lookItemDao, looks.length, loadLooks]);
-
-  const renameLook = useCallback(
-    async (lookId: string) => {
-      const current = await lookDao.getById(lookId);
-      if (!current) {
-        return;
-      }
-
-      await lookDao.update({
-        ...current,
-        name: `${current.name} *`,
-        updatedAt: new Date().toISOString(),
-      });
-
-      setMessage('Look actualizado.');
-      await loadLooks();
-    },
-    [lookDao, loadLooks],
-  );
+  }, [lookDao, lookItemDao, garmentDao]);
 
   const deleteLook = useCallback(
     async (lookId: string) => {
       await lookDao.delete(lookId);
-      setMessage('Look eliminado.');
       await loadLooks();
     },
     [lookDao, loadLooks],
@@ -133,31 +83,62 @@ export function LooksScreen({ navigation }: Props) {
         </View>
 
         <Text style={styles.title}>Colecciones (Looks)</Text>
-        <Text style={styles.subtitle}>Gestiona looks locales usando SQLite.</Text>
 
-        <Pressable style={styles.primaryButton} onPress={createLook}>
-          <Text style={styles.primaryButtonText}>Crear look rapido</Text>
+        <Pressable
+          style={styles.primaryButton}
+          onPress={() => navigation.navigate('GarmentGallery', { selectionMode: true })}
+        >
+          <Text style={styles.primaryButtonText}>+ Crear nuevo look</Text>
         </Pressable>
 
-        {message ? <Text style={styles.message}>{message}</Text> : null}
-
-        {!looks.length ? <Text style={styles.empty}>No hay looks creados todavia.</Text> : null}
+        {!looks.length ? (
+          <Text style={styles.empty}>No hay looks creados todavía.</Text>
+        ) : null}
 
         {looks.map((look) => (
-          <View key={look.id} style={styles.card}>
-            <Text style={styles.cardTitle}>{look.name}</Text>
-            <Text style={styles.cardSub}>{look.description}</Text>
-            <Text style={styles.cardMeta}>{look.itemCount} prendas</Text>
+          <Pressable
+            key={look.id}
+            style={styles.card}
+            onPress={() => navigation.navigate('LookDetail', { lookId: look.id })}
+          >
+            {look.coverImages.length > 0 && (
+              <View style={styles.imageStrip}>
+                {look.coverImages.map((uri, i) => (
+                  <Image key={i} source={{ uri }} style={styles.thumbnail} />
+                ))}
+                {look.itemCount > 4 && (
+                  <View style={styles.moreChip}>
+                    <Text style={styles.moreChipText}>+{look.itemCount - 4}</Text>
+                  </View>
+                )}
+              </View>
+            )}
 
-            <View style={styles.actionsRow}>
-              <Pressable style={styles.ghostButton} onPress={() => renameLook(look.id)}>
-                <Text style={styles.ghostButtonText}>Renombrar</Text>
-              </Pressable>
-              <Pressable style={styles.deleteButton} onPress={() => deleteLook(look.id)}>
-                <Text style={styles.deleteButtonText}>Eliminar</Text>
-              </Pressable>
+            <View style={styles.cardBody}>
+              <Text style={styles.cardTitle}>{look.name}</Text>
+              {look.description ? (
+                <Text style={styles.cardSub} numberOfLines={2}>{look.description}</Text>
+              ) : null}
+              <Text style={styles.cardMeta}>
+                {look.itemCount} prenda{look.itemCount !== 1 ? 's' : ''}
+              </Text>
+
+              <View style={styles.actionsRow}>
+                <Pressable
+                  style={styles.ghostButton}
+                  onPress={() => navigation.navigate('LookDetail', { lookId: look.id })}
+                >
+                  <Text style={styles.ghostButtonText}>Editar</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.deleteButton}
+                  onPress={() => deleteLook(look.id)}
+                >
+                  <Text style={styles.deleteButtonText}>Eliminar</Text>
+                </Pressable>
+              </View>
             </View>
-          </View>
+          </Pressable>
         ))}
       </ScrollView>
     </SafeAreaView>
@@ -193,11 +174,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 24,
     fontWeight: '700',
-  },
-  subtitle: {
-    marginTop: spacing.xs,
     marginBottom: spacing.md,
-    color: colors.textSecondary,
   },
   primaryButton: {
     height: 46,
@@ -211,11 +188,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '700',
   },
-  message: {
-    marginBottom: spacing.md,
-    color: colors.secondary,
-    fontWeight: '600',
-  },
   empty: {
     color: colors.textSecondary,
   },
@@ -224,8 +196,31 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radius.md,
     backgroundColor: colors.surface,
-    padding: spacing.md,
     marginBottom: spacing.sm,
+    overflow: 'hidden',
+  },
+  imageStrip: {
+    flexDirection: 'row',
+    height: 100,
+  },
+  thumbnail: {
+    flex: 1,
+    height: 100,
+  },
+  moreChip: {
+    width: 48,
+    height: 100,
+    backgroundColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  moreChipText: {
+    color: colors.textSecondary,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  cardBody: {
+    padding: spacing.md,
   },
   cardTitle: {
     color: colors.textPrimary,

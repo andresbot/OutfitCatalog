@@ -23,6 +23,8 @@ import { RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'GarmentGallery'>;
 
+const SELECTION_BAR_HEIGHT = 72;
+
 function formatLastSyncLabel(lastSyncedAt: string | null): string {
   if (!lastSyncedAt) {
     return 'Sin sincronizacion remota aun';
@@ -44,11 +46,13 @@ function formatSyncSourceLabel(source: 'remote' | 'cache' | 'not_configured'): s
   return 'Cache local';
 }
 
-export function GarmentGalleryScreen({ navigation }: Props) {
+export function GarmentGalleryScreen({ navigation, route }: Props) {
+  const selectionMode = route.params?.selectionMode ?? false;
   const auth = useAuth();
   const favoriteDao = useMemo(() => new FavoriteDao(getDatabase), []);
   const [menuVisible, setMenuVisible] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const {
     categories,
     selectedCategory,
@@ -90,6 +94,18 @@ export function GarmentGalleryScreen({ navigation }: Props) {
     [favoriteDao, favoriteIds],
   );
 
+  const toggleSelection = useCallback((garmentId: string) => {
+    setSelectedIds((current) =>
+      current.includes(garmentId)
+        ? current.filter((id) => id !== garmentId)
+        : [...current, garmentId],
+    );
+  }, []);
+
+  const handleContinueSelection = useCallback(() => {
+    navigation.navigate('CreateLookPreview', { garmentIds: selectedIds });
+  }, [navigation, selectedIds]);
+
   useFocusEffect(
     useCallback(() => {
       loadFavorites();
@@ -99,15 +115,29 @@ export function GarmentGalleryScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
-        <Pressable style={styles.menuButton} onPress={() => setMenuVisible(true)}>
-          <View style={styles.menuLine} />
-          <View style={styles.menuLine} />
-          <View style={styles.menuLine} />
-        </Pressable>
-        <Text style={styles.brand}>ATELIER</Text>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={styles.backLink}>Volver</Text>
-        </Pressable>
+        {selectionMode ? (
+          <Pressable onPress={() => navigation.goBack()}>
+            <Text style={styles.backLink}>Cancelar</Text>
+          </Pressable>
+        ) : (
+          <Pressable style={styles.menuButton} onPress={() => setMenuVisible(true)}>
+            <View style={styles.menuLine} />
+            <View style={styles.menuLine} />
+            <View style={styles.menuLine} />
+          </Pressable>
+        )}
+        <Text style={styles.brand}>
+          {selectionMode ? 'Seleccionar prendas' : 'ATELIER'}
+        </Text>
+        {selectionMode ? (
+          <Text style={styles.selectionCount}>
+            {selectedIds.length} selec.
+          </Text>
+        ) : (
+          <Pressable onPress={() => navigation.goBack()}>
+            <Text style={styles.backLink}>Volver</Text>
+          </Pressable>
+        )}
       </View>
 
       <Modal
@@ -211,35 +241,68 @@ export function GarmentGalleryScreen({ navigation }: Props) {
         keyExtractor={(item) => item.id}
         numColumns={2}
         style={styles.list}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[
+          styles.listContent,
+          selectionMode && { paddingBottom: SELECTION_BAR_HEIGHT + spacing.md },
+        ]}
         columnWrapperStyle={styles.column}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateText}>No se encontraron prendas para esta busqueda.</Text>
           </View>
         }
-        renderItem={({ item }) => (
-          <Pressable
-            style={styles.card}
-            onPress={() => navigation.navigate('GarmentDetail', { id: item.id })}
-          >
+        renderItem={({ item }) => {
+          const isSelected = selectedIds.includes(item.id);
+          return (
             <Pressable
-              style={styles.favoriteButton}
-              onPress={() => toggleFavorite(item.id)}
+              style={[styles.card, selectionMode && isSelected && styles.cardSelected]}
+              onPress={() =>
+                selectionMode
+                  ? toggleSelection(item.id)
+                  : navigation.navigate('GarmentDetail', { id: item.id })
+              }
             >
-              <Text style={styles.favoriteIcon}>
-                {favoriteIds.includes(item.id) ? '♥' : '♡'}
-              </Text>
+              {selectionMode ? (
+                <View style={[styles.checkboxBadge, isSelected && styles.checkboxBadgeActive]}>
+                  <Text style={styles.checkboxIcon}>{isSelected ? '✓' : ''}</Text>
+                </View>
+              ) : (
+                <Pressable
+                  style={styles.favoriteButton}
+                  onPress={() => toggleFavorite(item.id)}
+                >
+                  <Text style={styles.favoriteIcon}>
+                    {favoriteIds.includes(item.id) ? '♥' : '♡'}
+                  </Text>
+                </Pressable>
+              )}
+              <Image source={{ uri: item.imageUrl }} style={styles.cardImage} />
+              <View style={styles.cardBody}>
+                <Text style={styles.eyebrow}>{item.category}</Text>
+                <Text style={styles.cardTitle}>{item.name}</Text>
+                <Text style={styles.price}>{formatCOP(item.price)}</Text>
+              </View>
             </Pressable>
-            <Image source={{ uri: item.imageUrl }} style={styles.cardImage} />
-            <View style={styles.cardBody}>
-              <Text style={styles.eyebrow}>{item.category}</Text>
-              <Text style={styles.cardTitle}>{item.name}</Text>
-              <Text style={styles.price}>{formatCOP(item.price)}</Text>
-            </View>
-          </Pressable>
-        )}
+          );
+        }}
       />
+
+      {selectionMode && (
+        <View style={styles.selectionBar}>
+          <Text style={styles.selectionBarText}>
+            {selectedIds.length === 0
+              ? 'Selecciona prendas para el look'
+              : `${selectedIds.length} prenda${selectedIds.length !== 1 ? 's' : ''} seleccionada${selectedIds.length !== 1 ? 's' : ''}`}
+          </Text>
+          <Pressable
+            style={[styles.continueButton, !selectedIds.length && styles.continueButtonDisabled]}
+            onPress={handleContinueSelection}
+            disabled={!selectedIds.length}
+          >
+            <Text style={styles.continueButtonText}>Continuar</Text>
+          </Pressable>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -476,5 +539,73 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     color: colors.textSecondary,
+  },
+  selectionCount: {
+    color: colors.secondary,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  cardSelected: {
+    borderColor: colors.secondary,
+    borderWidth: 2,
+  },
+  checkboxBadge: {
+    position: 'absolute',
+    zIndex: 1,
+    top: spacing.sm,
+    right: spacing.sm,
+    width: 26,
+    height: 26,
+    borderRadius: radius.round,
+    borderWidth: 2,
+    borderColor: '#fff',
+    backgroundColor: '#00000066',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxBadgeActive: {
+    backgroundColor: colors.secondary,
+    borderColor: colors.secondary,
+  },
+  checkboxIcon: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  selectionBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: SELECTION_BAR_HEIGHT,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
+  },
+  selectionBarText: {
+    flex: 1,
+    color: colors.textSecondary,
+    fontSize: 13,
+  },
+  continueButton: {
+    height: 44,
+    borderRadius: radius.round,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  continueButtonDisabled: {
+    backgroundColor: colors.border,
+  },
+  continueButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
   },
 });

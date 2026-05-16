@@ -13,6 +13,8 @@ import {
 import { GarmentGalleryScreen } from './src/screens/GarmentGalleryScreen';
 import { GarmentDetailScreen } from './src/screens/GarmentDetailScreen';
 import { LooksScreen } from './src/screens/LooksScreen';
+import { LookDetailScreen } from './src/screens/LookDetailScreen';
+import { CreateLookPreviewScreen } from './src/screens/CreateLookPreviewScreen';
 import { FavoritesScreen } from './src/screens/FavoritesScreen';
 import { DatabaseInspectorScreen } from './src/screens/DatabaseInspectorScreen';
 import { RootStackParamList } from './src/types';
@@ -52,6 +54,8 @@ export default function App() {
           <Stack.Screen name="GarmentGallery" component={GarmentGalleryScreen} />
           <Stack.Screen name="GarmentDetail" component={GarmentDetailScreen} />
           <Stack.Screen name="Looks" component={LooksScreen} />
+          <Stack.Screen name="LookDetail" component={LookDetailScreen} />
+          <Stack.Screen name="CreateLookPreview" component={CreateLookPreviewScreen} />
           <Stack.Screen name="Favorites" component={FavoritesScreen} />
           <Stack.Screen name="DatabaseInspector" component={DatabaseInspectorScreen} />
         </Stack.Navigator>
