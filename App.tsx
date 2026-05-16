@@ -16,7 +16,6 @@ import { LooksScreen } from './src/screens/LooksScreen';
 import { LookDetailScreen } from './src/screens/LookDetailScreen';
 import { CreateLookPreviewScreen } from './src/screens/CreateLookPreviewScreen';
 import { FavoritesScreen } from './src/screens/FavoritesScreen';
-import { DatabaseInspectorScreen } from './src/screens/DatabaseInspectorScreen';
 import { RootStackParamList } from './src/types';
 import { getIt } from './src/core/di/getIt';
 import { DI_TOKENS, initDependencies } from './src/core/di/injectionContainer';
@@ -57,7 +56,6 @@ export default function App() {
           <Stack.Screen name="LookDetail" component={LookDetailScreen} />
           <Stack.Screen name="CreateLookPreview" component={CreateLookPreviewScreen} />
           <Stack.Screen name="Favorites" component={FavoritesScreen} />
-          <Stack.Screen name="DatabaseInspector" component={DatabaseInspectorScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </AuthProvider>

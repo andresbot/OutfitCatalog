@@ -25,27 +25,6 @@ type Props = NativeStackScreenProps<RootStackParamList, 'GarmentGallery'>;
 
 const SELECTION_BAR_HEIGHT = 72;
 
-function formatLastSyncLabel(lastSyncedAt: string | null): string {
-  if (!lastSyncedAt) {
-    return 'Sin sincronizacion remota aun';
-  }
-
-  const date = new Date(lastSyncedAt);
-  return `Ultima sync: ${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
-}
-
-function formatSyncSourceLabel(source: 'remote' | 'cache' | 'not_configured'): string {
-  if (source === 'remote') {
-    return 'Remoto';
-  }
-
-  if (source === 'not_configured') {
-    return 'Firestore no configurado';
-  }
-
-  return 'Cache local';
-}
-
 export function GarmentGalleryScreen({ navigation, route }: Props) {
   const selectionMode = route.params?.selectionMode ?? false;
   const auth = useAuth();
@@ -60,8 +39,6 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
     filteredGarments,
     setCategory,
     setSearchQuery,
-    syncInfo,
-    syncNow,
   } = useGarmentGalleryViewModel();
 
   const loadFavorites = useCallback(async () => {
@@ -225,16 +202,6 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
           );
         })}
       </ScrollView>
-
-      <View style={styles.syncStatusRow}>
-        <View>
-          <Text style={styles.syncSource}>{formatSyncSourceLabel(syncInfo.source)}</Text>
-          <Text style={styles.syncTimestamp}>{formatLastSyncLabel(syncInfo.lastSyncedAt)}</Text>
-        </View>
-        <Pressable style={styles.syncButton} onPress={syncNow}>
-          <Text style={styles.syncButtonText}>Sincronizar</Text>
-        </Pressable>
-      </View>
 
       <FlatList
         data={filteredGarments}
@@ -435,43 +402,6 @@ const styles = StyleSheet.create({
   },
   filterTextActive: {
     color: '#fff',
-  },
-  syncStatusRow: {
-    marginHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  syncSource: {
-    color: colors.textPrimary,
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  syncTimestamp: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  syncButton: {
-    height: 34,
-    borderRadius: radius.round,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    paddingHorizontal: spacing.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  syncButtonText: {
-    color: colors.primary,
-    fontWeight: '700',
-    fontSize: 12,
   },
   list: {
     flex: 1,

@@ -82,13 +82,13 @@ export function LooksScreen({ navigation }: Props) {
           </Pressable>
         </View>
 
-        <Text style={styles.title}>Colecciones (Looks)</Text>
+        <Text style={styles.title}>Mis looks</Text>
 
         <Pressable
           style={styles.primaryButton}
           onPress={() => navigation.navigate('GarmentGallery', { selectionMode: true })}
         >
-          <Text style={styles.primaryButtonText}>+ Crear nuevo look</Text>
+          <Text style={styles.primaryButtonText}>Nuevo look</Text>
         </Pressable>
 
         {!looks.length ? (

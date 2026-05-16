@@ -19,5 +19,4 @@ export type RootStackParamList = {
   LookDetail: { lookId: string };
   CreateLookPreview: { garmentIds: string[] };
   Favorites: undefined;
-  DatabaseInspector: undefined;
 };

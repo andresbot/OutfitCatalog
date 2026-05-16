@@ -81,8 +81,7 @@ export function LoginScreen({ navigation }: Props) {
     <SafeAreaView style={styles.safe}>
       <View style={styles.card}>
         <Text style={styles.eyebrow}>Outfit Catalog</Text>
-        <Text style={styles.title}>Login</Text>
-        
+        <Text style={styles.title}>Iniciar sesion</Text>
 
         <TextInput
           style={styles.input}
@@ -100,7 +99,7 @@ export function LoginScreen({ navigation }: Props) {
           onChangeText={setPassword}
         />
 
-        <Text style={styles.hint}>Inicia con una cuenta registrada para cargar su rol.</Text>
+        <Text style={styles.hint}>Accede con tu cuenta para explorar el catalogo.</Text>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
