@@ -10,7 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, radius, spacing } from '../theme';
 
 type Stat = { label: string; value: string };
-type Quick = { label: string; hint: string };
+type Quick = { label: string; hint: string; onPress?: () => void };
 
 type Props = {
   title: string;
@@ -74,12 +74,23 @@ export function RoleDashboard({
 
         <Text style={styles.sectionLabel}>Accesos rapidos</Text>
         <View style={styles.quickGrid}>
-          {quick.map((item) => (
-            <View key={item.label} style={styles.quickCard}>
-              <Text style={styles.quickTitle}>{item.label}</Text>
-              <Text style={styles.quickHint}>{item.hint}</Text>
-            </View>
-          ))}
+          {quick.map((item) =>
+            item.onPress ? (
+              <Pressable
+                key={item.label}
+                style={styles.quickCard}
+                onPress={item.onPress}
+              >
+                <Text style={styles.quickTitle}>{item.label}</Text>
+                <Text style={styles.quickHint}>{item.hint}</Text>
+              </Pressable>
+            ) : (
+              <View key={item.label} style={styles.quickCard}>
+                <Text style={styles.quickTitle}>{item.label}</Text>
+                <Text style={styles.quickHint}>{item.hint}</Text>
+              </View>
+            ),
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>

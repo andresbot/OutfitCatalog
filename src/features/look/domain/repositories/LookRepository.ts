@@ -10,6 +10,7 @@ export interface CreateLookInput {
 export interface LookRepository {
   create(input: CreateLookInput): Promise<Look>;
   list(): Promise<Look[]>;
+  listByUserId(userId: string): Promise<Look[]>;
   getById(id: string): Promise<Look | null>;
   getItemsByLookId(lookId: string): Promise<LookItem[]>;
   delete(id: string): Promise<void>;

@@ -12,10 +12,15 @@ import {
 } from './src/screens/RoleHomeScreens';
 import { GarmentGalleryScreen } from './src/screens/GarmentGalleryScreen';
 import { GarmentDetailScreen } from './src/screens/GarmentDetailScreen';
-import { LooksScreen } from './src/screens/LooksScreen';
+import { LooksScreenByRole } from './src/screens/LooksScreenByRole';
 import { LookDetailScreen } from './src/screens/LookDetailScreen';
 import { CreateLookPreviewScreen } from './src/screens/CreateLookPreviewScreen';
 import { FavoritesScreen } from './src/screens/FavoritesScreen';
+import { InventoryManagementScreen } from './src/screens/InventoryManagementScreen';
+import { AddEditGarmentScreen } from './src/screens/AddEditGarmentScreen';
+import { UserManagementScreen } from './src/screens/UserManagementScreen';
+import { AdminReportsScreen } from './src/screens/AdminReportsScreen';
+import { LookModerationScreen } from './src/screens/LookModerationScreen';
 import { RootStackParamList } from './src/types';
 import { getIt } from './src/core/di/getIt';
 import { DI_TOKENS, initDependencies } from './src/core/di/injectionContainer';
@@ -52,10 +57,15 @@ export default function App() {
           <Stack.Screen name="AdminHome" component={AdminHomeScreen} />
           <Stack.Screen name="GarmentGallery" component={GarmentGalleryScreen} />
           <Stack.Screen name="GarmentDetail" component={GarmentDetailScreen} />
-          <Stack.Screen name="Looks" component={LooksScreen} />
+          <Stack.Screen name="Looks" component={LooksScreenByRole} />
           <Stack.Screen name="LookDetail" component={LookDetailScreen} />
           <Stack.Screen name="CreateLookPreview" component={CreateLookPreviewScreen} />
           <Stack.Screen name="Favorites" component={FavoritesScreen} />
+          <Stack.Screen name="InventoryManagement" component={InventoryManagementScreen} />
+          <Stack.Screen name="AddEditGarment" component={AddEditGarmentScreen} />
+          <Stack.Screen name="UserManagement" component={UserManagementScreen} />
+          <Stack.Screen name="AdminReports" component={AdminReportsScreen} />
+          <Stack.Screen name="LookModeration" component={LookModerationScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </AuthProvider>

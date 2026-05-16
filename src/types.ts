@@ -19,4 +19,9 @@ export type RootStackParamList = {
   LookDetail: { lookId: string };
   CreateLookPreview: { garmentIds: string[] };
   Favorites: undefined;
+  InventoryManagement: undefined;
+  AddEditGarment: { garmentId?: string } | undefined;
+  UserManagement: undefined;
+  AdminReports: undefined;
+  LookModeration: undefined;
 };

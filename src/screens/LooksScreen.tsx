@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,25 +13,53 @@ import { GarmentDao } from '../core/database/daos/GarmentDao';
 import { LookDao } from '../core/database/daos/LookDao';
 import { LookItemDao } from '../core/database/daos/LookItemDao';
 import { getDatabase } from '../core/database/database';
-import { colors, radius, spacing } from '../theme';
+import { colors, spacing } from '../theme';
 import { RootStackParamList } from '../types';
+import { LookCard as LookCardComponent } from '../components/LookCard';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Looks'>;
 
-type LookCard = {
+type LookCardData = {
   id: string;
   name: string;
   description: string;
   itemCount: number;
   coverImages: string[];
+  createdAt: string;
 };
+
+type SortOrder = 'date-desc' | 'date-asc' | 'name-asc' | 'name-desc';
 
 export function LooksScreen({ navigation }: Props) {
   const lookDao = useMemo(() => new LookDao(getDatabase), []);
   const lookItemDao = useMemo(() => new LookItemDao(getDatabase), []);
   const garmentDao = useMemo(() => new GarmentDao(getDatabase), []);
 
-  const [looks, setLooks] = useState<LookCard[]>([]);
+  const [looks, setLooks] = useState<LookCardData[]>([]);
+  const [sortOrder, setSortOrder] = useState<SortOrder>('date-desc');
+
+  const sortLooks = useCallback(
+    (looksToSort: LookCardData[]): LookCardData[] => {
+      const sorted = [...looksToSort];
+      switch (sortOrder) {
+        case 'date-desc':
+          return sorted.sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+          );
+        case 'date-asc':
+          return sorted.sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+          );
+        case 'name-asc':
+          return sorted.sort((a, b) => a.name.localeCompare(b.name));
+        case 'name-desc':
+          return sorted.sort((a, b) => b.name.localeCompare(a.name));
+        default:
+          return sorted;
+      }
+    },
+    [sortOrder],
+  );
 
   const loadLooks = useCallback(async () => {
     const rows = await lookDao.list();
@@ -52,11 +79,12 @@ export function LooksScreen({ navigation }: Props) {
           description: look.description,
           itemCount: items.length,
           coverImages,
+          createdAt: look.createdAt,
         };
       }),
     );
-    setLooks(cards);
-  }, [lookDao, lookItemDao, garmentDao]);
+    setLooks(sortLooks(cards));
+  }, [lookDao, lookItemDao, garmentDao, sortLooks]);
 
   const deleteLook = useCallback(
     async (lookId: string) => {
@@ -91,54 +119,68 @@ export function LooksScreen({ navigation }: Props) {
           <Text style={styles.primaryButtonText}>Nuevo look</Text>
         </Pressable>
 
+        {looks.length > 0 && (
+          <View style={styles.sortContainer}>
+            <Text style={styles.sortLabel}>Ordenar por:</Text>
+            <View style={styles.sortButtonsRow}>
+              <Pressable
+                style={[
+                  styles.sortButton,
+                  sortOrder === 'date-desc' && styles.sortButtonActive,
+                ]}
+                onPress={() => {
+                  setSortOrder('date-desc');
+                  setLooks((prev) => sortLooks(prev));
+                }}
+              >
+                <Text
+                  style={[
+                    styles.sortButtonText,
+                    sortOrder === 'date-desc' && styles.sortButtonTextActive,
+                  ]}
+                >
+                  Reciente
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.sortButton,
+                  sortOrder === 'name-asc' && styles.sortButtonActive,
+                ]}
+                onPress={() => {
+                  setSortOrder('name-asc');
+                  setLooks((prev) => sortLooks(prev));
+                }}
+              >
+                <Text
+                  style={[
+                    styles.sortButtonText,
+                    sortOrder === 'name-asc' && styles.sortButtonTextActive,
+                  ]}
+                >
+                  A-Z
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+
         {!looks.length ? (
           <Text style={styles.empty}>No hay looks creados todavía.</Text>
         ) : null}
 
         {looks.map((look) => (
-          <Pressable
+          <LookCardComponent
             key={look.id}
-            style={styles.card}
+            id={look.id}
+            name={look.name}
+            description={look.description}
+            itemCount={look.itemCount}
+            coverImages={look.coverImages}
             onPress={() => navigation.navigate('LookDetail', { lookId: look.id })}
-          >
-            {look.coverImages.length > 0 && (
-              <View style={styles.imageStrip}>
-                {look.coverImages.map((uri, i) => (
-                  <Image key={i} source={{ uri }} style={styles.thumbnail} />
-                ))}
-                {look.itemCount > 4 && (
-                  <View style={styles.moreChip}>
-                    <Text style={styles.moreChipText}>+{look.itemCount - 4}</Text>
-                  </View>
-                )}
-              </View>
-            )}
-
-            <View style={styles.cardBody}>
-              <Text style={styles.cardTitle}>{look.name}</Text>
-              {look.description ? (
-                <Text style={styles.cardSub} numberOfLines={2}>{look.description}</Text>
-              ) : null}
-              <Text style={styles.cardMeta}>
-                {look.itemCount} prenda{look.itemCount !== 1 ? 's' : ''}
-              </Text>
-
-              <View style={styles.actionsRow}>
-                <Pressable
-                  style={styles.ghostButton}
-                  onPress={() => navigation.navigate('LookDetail', { lookId: look.id })}
-                >
-                  <Text style={styles.ghostButtonText}>Editar</Text>
-                </Pressable>
-                <Pressable
-                  style={styles.deleteButton}
-                  onPress={() => deleteLook(look.id)}
-                >
-                  <Text style={styles.deleteButtonText}>Eliminar</Text>
-                </Pressable>
-              </View>
-            </View>
-          </Pressable>
+            onEdit={() => navigation.navigate('LookDetail', { lookId: look.id })}
+            onDelete={() => deleteLook(look.id)}
+          />
         ))}
       </ScrollView>
     </SafeAreaView>
@@ -178,7 +220,7 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     height: 46,
-    borderRadius: radius.round,
+    borderRadius: spacing.lg,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -188,83 +230,47 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '700',
   },
-  empty: {
-    color: colors.textSecondary,
+  sortContainer: {
+    marginBottom: spacing.md,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
-  card: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    marginBottom: spacing.sm,
-    overflow: 'hidden',
-  },
-  imageStrip: {
-    flexDirection: 'row',
-    height: 100,
-  },
-  thumbnail: {
-    flex: 1,
-    height: 100,
-  },
-  moreChip: {
-    width: 48,
-    height: 100,
-    backgroundColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  moreChipText: {
-    color: colors.textSecondary,
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  cardBody: {
-    padding: spacing.md,
-  },
-  cardTitle: {
-    color: colors.textPrimary,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  cardSub: {
-    marginTop: spacing.xs,
-    color: colors.textSecondary,
-  },
-  cardMeta: {
-    marginTop: spacing.xs,
-    color: colors.textMuted,
+  sortLabel: {
     fontSize: 12,
+    fontWeight: '700',
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: spacing.xs,
   },
-  actionsRow: {
+  sortButtonsRow: {
     flexDirection: 'row',
     gap: spacing.sm,
-    marginTop: spacing.sm,
   },
-  ghostButton: {
+  sortButton: {
     flex: 1,
-    height: 40,
-    borderRadius: radius.round,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface,
   },
-  ghostButtonText: {
-    color: colors.textPrimary,
+  sortButtonActive: {
+    backgroundColor: colors.secondary,
+    borderColor: colors.secondary,
+  },
+  sortButtonText: {
+    fontSize: 12,
     fontWeight: '600',
+    color: colors.textSecondary,
   },
-  deleteButton: {
-    flex: 1,
-    height: 40,
-    borderRadius: radius.round,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.error,
-  },
-  deleteButtonText: {
+  sortButtonTextActive: {
     color: '#fff',
-    fontWeight: '700',
+  },
+  empty: {
+    color: colors.textSecondary,
   },
 });

@@ -51,6 +51,18 @@ export class LookRepositoryImpl implements LookRepository {
     }));
   }
 
+  async listByUserId(userId: string): Promise<Look[]> {
+    const rows = await this.lookDao.list();
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      coverImageUrl: row.coverImageUrl,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    }));
+  }
+
   async getById(id: string): Promise<Look | null> {
     const row = await this.lookDao.getById(id);
     if (!row) return null;

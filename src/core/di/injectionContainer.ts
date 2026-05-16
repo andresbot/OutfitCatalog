@@ -20,6 +20,7 @@ import { getDatabase } from '../../core/database/database';
 import { LookRepositoryImpl } from '../../features/look/data/repositories/LookRepositoryImpl';
 import { LookRepository } from '../../features/look/domain/repositories/LookRepository';
 import { CreateLookUseCase } from '../../features/look/domain/usecases/CreateLookUseCase';
+import { GetAllLooksUseCase } from '../../features/look/domain/usecases/GetAllLooksUseCase';
 import { getIt } from './getIt';
 
 export const DI_TOKENS = {
@@ -34,6 +35,7 @@ export const DI_TOKENS = {
   getGarmentSyncInfoUseCase: 'getGarmentSyncInfoUseCase',
   lookRepository: 'lookRepository',
   createLookUseCase: 'createLookUseCase',
+  getAllLooksUseCase: 'getAllLooksUseCase',
 } as const;
 
 export function initDependencies(): void {
@@ -101,5 +103,10 @@ export function initDependencies(): void {
   getIt.registerSingleton(
     DI_TOKENS.createLookUseCase,
     new CreateLookUseCase(getIt.get<LookRepository>(DI_TOKENS.lookRepository)),
+  );
+
+  getIt.registerSingleton(
+    DI_TOKENS.getAllLooksUseCase,
+    new GetAllLooksUseCase(getIt.get<LookRepository>(DI_TOKENS.lookRepository)),
   );
 }
