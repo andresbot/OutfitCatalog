@@ -78,17 +78,11 @@ export function useGarmentGalleryViewModel() {
   });
 
   const reload = useCallback(async () => {
-    let syncInfo: GarmentSyncInfo;
-
-    try {
-      syncInfo = await viewModel.syncGarments();
-    } catch {
-      syncInfo = await viewModel.loadSyncInfo();
-    }
-
-    const [garments, categories] = await Promise.all([
+    // Show cached data immediately
+    const [garments, categories, syncInfo] = await Promise.all([
       viewModel.loadGarments(),
       viewModel.loadCategories(),
+      viewModel.loadSyncInfo(),
     ]);
 
     setState((current) => ({
@@ -98,6 +92,23 @@ export function useGarmentGalleryViewModel() {
       loading: false,
       syncInfo,
     }));
+
+    // Sync with remote in background without blocking the UI
+    try {
+      const newSyncInfo = await viewModel.syncGarments();
+      const [syncedGarments, syncedCategories] = await Promise.all([
+        viewModel.loadGarments(),
+        viewModel.loadCategories(),
+      ]);
+      setState((current) => ({
+        ...current,
+        garments: syncedGarments,
+        categories: syncedCategories,
+        syncInfo: newSyncInfo,
+      }));
+    } catch {
+      // Remote sync failed — cached data is already shown
+    }
   }, [viewModel]);
 
   const syncNow = useCallback(async () => {

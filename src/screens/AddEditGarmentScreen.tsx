@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,6 +9,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { uploadToCloudinary } from '../core/services/cloudinaryUpload';
 import { CachedImage } from '../components/CachedImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -25,6 +26,26 @@ import { colors, radius, shadows, spacing } from '../theme';
 import { RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AddEditGarment'>;
+
+const GARMENT_CATEGORIES = [
+  'Camisas',
+  'Camisetas',
+  'Blusas',
+  'Pantalones',
+  'Jeans',
+  'Faldas',
+  'Vestidos',
+  'Chaquetas',
+  'Abrigos',
+  'Trajes',
+  'Conjuntos',
+  'Calzado',
+  'Bolsos',
+  'Accesorios',
+  'Deportiva',
+  'Ropa interior',
+  'Ropa de baño',
+];
 
 function getGarmentPersistenceError(error: any): string {
   const code = error?.code ?? '';
@@ -63,6 +84,35 @@ export function AddEditGarmentScreen({ navigation, route }: Props) {
   const [loading, setLoading] = useState(isEditing);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const onPickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      setError('Necesitamos acceso a tu galeria para subir imagenes.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: [4, 3],
+    });
+
+    if (result.canceled || !result.assets[0]) return;
+
+    setUploading(true);
+    setError('');
+    try {
+      const url = await uploadToCloudinary(result.assets[0].uri);
+      setImageUrl(url);
+    } catch (e: any) {
+      setError(e?.message ?? 'No se pudo subir la imagen. Verifica las credenciales de Cloudinary.');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   useEffect(() => {
     if (!garmentId) {
@@ -114,10 +164,7 @@ export function AddEditGarmentScreen({ navigation, route }: Props) {
       setError('Nombre y categoria son obligatorios.');
       return;
     }
-    if (!imageUrl.trim()) {
-      setError('Agrega una URL de imagen real para publicar el producto.');
-      return;
-    }
+
 
     const priceNum = parseFloat(price);
     const stockNum = parseInt(stock, 10);
@@ -150,14 +197,17 @@ export function AddEditGarmentScreen({ navigation, route }: Props) {
     };
 
     try {
+      // Save locally first so the product is never lost
+      await garmentDao.upsert(row);
+
+      // Sync to remote in background — don't block the user on network failures
       if (garmentRemoteDataSource.isConfigured()) {
-        await garmentRemoteDataSource.upsertGarment(toGarmentModel(row));
+        garmentRemoteDataSource.upsertGarment(toGarmentModel(row)).catch((e: any) => {
+          console.warn('Remote garment sync failed:', e);
+        });
       }
 
-      await garmentDao.upsert(row);
-      Alert.alert('Listo', isEditing ? 'Producto actualizado.' : 'Producto creado.', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      navigation.goBack();
     } catch (e: any) {
       setError(getGarmentPersistenceError(e));
     } finally {
@@ -201,13 +251,22 @@ export function AddEditGarmentScreen({ navigation, route }: Props) {
             />
 
             <Text style={styles.label}>Categoria *</Text>
-            <TextInput
-              style={styles.input}
-              value={category}
-              onChangeText={setCategory}
-              placeholder="Ej. Camisas, Pantalones, Zapatos"
-              placeholderTextColor={colors.textMuted}
-            />
+            <View style={styles.categoryGrid}>
+              {GARMENT_CATEGORIES.map((cat) => {
+                const active = category === cat;
+                return (
+                  <Pressable
+                    key={cat}
+                    style={[styles.categoryChip, active && styles.categoryChipActive]}
+                    onPress={() => setCategory(cat)}
+                  >
+                    <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>
+                      {cat}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
 
             <View style={styles.row}>
               <View style={styles.flex1}>
@@ -257,7 +316,21 @@ export function AddEditGarmentScreen({ navigation, route }: Props) {
               </View>
             </View>
 
-            <Text style={styles.label}>URL de imagen *</Text>
+            <Text style={styles.label}>Imagen del producto *</Text>
+            <Pressable
+              style={[styles.uploadButton, (uploading || saving) && styles.uploadButtonDisabled]}
+              onPress={onPickImage}
+              disabled={uploading || saving}
+            >
+              {uploading ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Text style={styles.uploadButtonText}>
+                  {imageUrl ? 'Cambiar imagen' : 'Subir desde galeria'}
+                </Text>
+              )}
+            </Pressable>
+            <Text style={styles.labelOr}>O pega una URL directamente</Text>
             <TextInput
               style={styles.input}
               value={imageUrl}
@@ -393,6 +466,49 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 12,
     lineHeight: 17,
+  },
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  categoryChip: {
+    borderWidth: 0.5,
+    borderColor: colors.border,
+    borderRadius: radius.round,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    backgroundColor: colors.surface,
+  },
+  categoryChipActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  categoryChipText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  categoryChipTextActive: {
+    color: '#0C0C0E',
+    fontWeight: '800',
+  },
+  uploadButton: {
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: radius.md,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+  },
+  uploadButtonDisabled: { opacity: 0.5 },
+  uploadButtonText: { color: colors.primary, fontWeight: '700', fontSize: 14 },
+  labelOr: {
+    color: colors.textMuted,
+    fontSize: 11,
+    textAlign: 'center',
+    marginTop: 4,
   },
   error: { color: colors.error, fontSize: 12, textAlign: 'center' },
   primaryButton: {
