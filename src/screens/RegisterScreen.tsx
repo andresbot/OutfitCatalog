@@ -55,8 +55,11 @@ export function RegisterScreen({ navigation }: Props) {
   const roles: UserRole[] = ['user', 'vendor', 'admin'];
   const submitting = emailLoading || googleLoading;
 
+  const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  const googleConfigured = !!googleWebClientId;
+
   const [, response, promptAsync] = Google.useAuthRequest({
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    webClientId: googleWebClientId ?? 'not-configured',
     androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
   });
 
@@ -246,20 +249,22 @@ export function RegisterScreen({ navigation }: Props) {
             <View style={styles.dividerLine} />
           </View>
 
-          <Pressable
-            style={[styles.googleButton, submitting && styles.buttonDisabled]}
-            onPress={onGooglePress}
-            disabled={submitting}
-          >
-            {googleLoading ? (
-              <ActivityIndicator size="small" color={colors.textPrimary} />
-            ) : (
-              <>
-                <Text style={styles.googleIcon}>G</Text>
-                <Text style={styles.googleButtonText}>Continuar con Google</Text>
-              </>
-            )}
-          </Pressable>
+          {googleConfigured && (
+            <Pressable
+              style={[styles.googleButton, submitting && styles.buttonDisabled]}
+              onPress={onGooglePress}
+              disabled={submitting}
+            >
+              {googleLoading ? (
+                <ActivityIndicator size="small" color={colors.textPrimary} />
+              ) : (
+                <>
+                  <Text style={styles.googleIcon}>G</Text>
+                  <Text style={styles.googleButtonText}>Continuar con Google</Text>
+                </>
+              )}
+            </Pressable>
+          )}
 
           <Pressable onPress={() => navigation.replace('Login')} disabled={submitting}>
             <Text style={styles.link}>
