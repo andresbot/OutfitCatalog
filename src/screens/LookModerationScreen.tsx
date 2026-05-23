@@ -2,13 +2,13 @@ import React, { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
   FlatList,
-  Image,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { CachedImage } from '../components/CachedImage';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -158,7 +158,7 @@ export function LookModerationScreen({ navigation }: Props) {
         renderItem={({ item }) => (
           <View style={styles.row}>
             {item.coverImage ? (
-              <Image source={{ uri: item.coverImage }} style={styles.thumb} />
+              <CachedImage uri={item.coverImage} style={styles.thumb} />
             ) : (
               <View style={[styles.thumb, styles.thumbPlaceholder]}>
                 <Text style={styles.placeholderIcon}>?</Text>

@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -9,6 +8,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { CachedImage } from '../components/CachedImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { GarmentDao } from '../core/database/daos/GarmentDao';
@@ -109,7 +109,7 @@ export function AddEditGarmentScreen({ navigation, route }: Props) {
         </View>
 
         {imageUrl ? (
-          <Image source={{ uri: imageUrl }} style={styles.preview} />
+          <CachedImage uri={imageUrl} style={styles.preview} />
         ) : (
           <View style={[styles.preview, styles.previewPlaceholder]}>
             <Text style={styles.placeholderText}>Vista previa de imagen</Text>

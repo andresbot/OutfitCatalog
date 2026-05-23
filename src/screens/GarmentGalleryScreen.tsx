@@ -1,7 +1,6 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
-  Image,
   Modal,
   Pressable,
   ScrollView,
@@ -10,6 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { CachedImage } from '../components/CachedImage';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -18,6 +18,8 @@ import { FavoriteDao } from '../core/database/daos/FavoriteDao';
 import { getDatabase } from '../core/database/database';
 import { formatCOP } from '../features/garment/presentation/utils/formatCOP';
 import { useGarmentGalleryViewModel } from '../features/garment/presentation/viewmodels/GarmentGalleryViewModel';
+import { useNetwork } from '../context/NetworkContext';
+import { OfflineBanner } from '../components/OfflineBanner';
 import { colors, radius, spacing } from '../theme';
 import { RootStackParamList } from '../types';
 
@@ -32,6 +34,7 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
   const [menuVisible, setMenuVisible] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const { isConnected, justReconnected } = useNetwork();
   const {
     categories,
     selectedCategory,
@@ -39,7 +42,17 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
     filteredGarments,
     setCategory,
     setSearchQuery,
+    syncNow,
   } = useGarmentGalleryViewModel();
+
+  // SCRUM-77: auto-sync garments on reconnect so favorites reference fresh data
+  const syncRef = useRef(syncNow);
+  syncRef.current = syncNow;
+  useEffect(() => {
+    if (justReconnected) {
+      syncRef.current();
+    }
+  }, [justReconnected]);
 
   const loadFavorites = useCallback(async () => {
     const favorites = await favoriteDao.list();
@@ -91,6 +104,7 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <OfflineBanner />
       <View style={styles.header}>
         {selectionMode ? (
           <Pressable onPress={() => navigation.goBack()}>
@@ -243,7 +257,7 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
                   </Text>
                 </Pressable>
               )}
-              <Image source={{ uri: item.imageUrl }} style={styles.cardImage} />
+              <CachedImage uri={item.imageUrl} style={styles.cardImage} />
               <View style={styles.cardBody}>
                 <Text style={styles.eyebrow}>{item.category}</Text>
                 <Text style={styles.cardTitle}>{item.name}</Text>

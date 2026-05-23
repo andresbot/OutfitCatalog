@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, radius, spacing } from '../theme';
+import { OfflineBanner } from './OfflineBanner';
 
 type Stat = { label: string; value: string };
 type Quick = { label: string; hint: string; onPress?: () => void };
@@ -39,6 +40,7 @@ export function RoleDashboard({
 }: Props) {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <OfflineBanner />
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.topbar}>
           <Text style={styles.brand}>ATELIER</Text>

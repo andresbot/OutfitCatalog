@@ -1,12 +1,12 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   FlatList,
-  Image,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { CachedImage } from '../components/CachedImage';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,6 +14,7 @@ import { FavoriteDao } from '../core/database/daos/FavoriteDao';
 import { GarmentDao } from '../core/database/daos/GarmentDao';
 import { getDatabase } from '../core/database/database';
 import { formatCOP } from '../features/garment/presentation/utils/formatCOP';
+import { OfflineBanner } from '../components/OfflineBanner';
 import { colors, radius, spacing } from '../theme';
 import { RootStackParamList } from '../types';
 
@@ -69,6 +70,7 @@ export function FavoritesScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <OfflineBanner />
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.brand}>ATELIER</Text>
@@ -92,7 +94,7 @@ export function FavoritesScreen({ navigation }: Props) {
               style={styles.card}
               onPress={() => navigation.navigate('GarmentDetail', { id: item.id })}
             >
-              <Image source={{ uri: item.imageUrl }} style={styles.image} />
+              <CachedImage uri={item.imageUrl} style={styles.image} />
               <View style={styles.cardBody}>
                 <Text style={styles.category}>{item.category}</Text>
                 <Text style={styles.name}>{item.name}</Text>

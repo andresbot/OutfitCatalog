@@ -1,12 +1,12 @@
 import React from 'react';
 import {
-  Image,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { colors, radius, spacing } from '../theme';
+import { CachedImage } from './CachedImage';
 
 export interface LookCardProps {
   id: string;
@@ -34,7 +34,7 @@ export function LookCard({
       {coverImages.length > 0 && (
         <View style={styles.imageStrip}>
           {coverImages.map((uri, i) => (
-            <Image key={i} source={{ uri }} style={styles.thumbnail} />
+            <CachedImage key={i} uri={uri} style={styles.thumbnail} />
           ))}
           {itemCount > 4 && (
             <View style={styles.moreChip}>

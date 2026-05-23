@@ -1,12 +1,12 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { CachedImage } from '../components/CachedImage';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -78,7 +78,7 @@ export function GarmentDetailScreen({ route, navigation }: Props) {
           </Pressable>
         </View>
 
-        <Image source={{ uri: garment.imageUrl }} style={styles.image} />
+        <CachedImage uri={garment.imageUrl} style={styles.image} />
 
         <Text style={styles.name}>{garment.name}</Text>
         <Text style={styles.description}>{garment.description}</Text>

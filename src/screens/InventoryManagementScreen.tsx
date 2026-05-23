@@ -2,13 +2,13 @@ import React, { useCallback, useMemo, useState } from 'react';
 import {
   Alert,
   FlatList,
-  Image,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { CachedImage } from '../components/CachedImage';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -164,7 +164,7 @@ export function InventoryManagementScreen({ navigation }: Props) {
               : colors.secondary;
           return (
             <View style={styles.row}>
-              <Image source={{ uri: item.imageUrl }} style={styles.thumb} />
+              <CachedImage uri={item.imageUrl} style={styles.thumb} />
               <View style={styles.rowBody}>
                 <Text style={styles.itemCategory}>{item.category}</Text>
                 <Text style={styles.itemName}>{item.name}</Text>

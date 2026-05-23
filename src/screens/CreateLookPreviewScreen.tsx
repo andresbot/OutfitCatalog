@@ -2,13 +2,13 @@ import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { CachedImage } from '../components/CachedImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
@@ -125,7 +125,7 @@ export function CreateLookPreviewScreen({ navigation, route }: Props) {
         }
         renderItem={({ item }) => (
           <View style={styles.garmentRow}>
-            <Image source={{ uri: item.imageUrl }} style={styles.garmentImage} />
+            <CachedImage uri={item.imageUrl} style={styles.garmentImage} />
             <View style={styles.garmentInfo}>
               <Text style={styles.garmentCategory}>{item.category}</Text>
               <Text style={styles.garmentName}>{item.name}</Text>

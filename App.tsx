@@ -25,6 +25,7 @@ import { RootStackParamList } from './src/types';
 import { getIt } from './src/core/di/getIt';
 import { DI_TOKENS, initDependencies } from './src/core/di/injectionContainer';
 import { SyncGarmentsUseCase } from './src/features/garment/domain/usecases/SyncGarmentsUseCase';
+import { NetworkProvider } from './src/context/NetworkContext';
 
 initDependencies();
 
@@ -40,6 +41,7 @@ export default function App() {
   }, []);
 
   return (
+    <NetworkProvider>
     <AuthProvider>
       <NavigationContainer>
         <StatusBar style="dark" />
@@ -69,5 +71,6 @@ export default function App() {
         </Stack.Navigator>
       </NavigationContainer>
     </AuthProvider>
+    </NetworkProvider>
   );
 }
