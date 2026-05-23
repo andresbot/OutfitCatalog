@@ -2,7 +2,7 @@ import { GarmentSyncInfo } from '../../domain/entities/GarmentSyncInfo';
 import { GarmentDao } from '../../../../core/database/daos/GarmentDao';
 import { SchemaMetaDao } from '../../../../core/database/daos/SchemaMetaDao';
 import { getDatabase } from '../../../../core/database/database';
-import { GarmentModel, toGarmentModel } from '../models/GarmentModel';
+import { GarmentModel, toGarmentModel, toGarmentRow } from '../models/GarmentModel';
 
 const LAST_SYNC_AT_KEY = 'garments_last_sync_at';
 const LAST_SYNC_SOURCE_KEY = 'garments_last_sync_source';
@@ -26,7 +26,7 @@ export class GarmentLocalDataSourceImpl implements GarmentLocalDataSource {
   ) {}
 
   async getGarments(): Promise<GarmentModel[]> {
-    return (await this.garmentDao.list()).map(toGarmentModel);
+    return (await this.garmentDao.listPublished()).map(toGarmentModel);
   }
 
   async searchGarments(query: string): Promise<GarmentModel[]> {
@@ -35,7 +35,7 @@ export class GarmentLocalDataSourceImpl implements GarmentLocalDataSource {
       return this.getGarments();
     }
 
-    return (await this.garmentDao.search(normalizedQuery)).map(toGarmentModel);
+    return (await this.garmentDao.searchPublished(normalizedQuery)).map(toGarmentModel);
   }
 
   async getGarmentById(id: string): Promise<GarmentModel | null> {
@@ -44,16 +44,11 @@ export class GarmentLocalDataSourceImpl implements GarmentLocalDataSource {
   }
 
   async getCategories(): Promise<string[]> {
-    return this.garmentDao.listCategories();
+    return this.garmentDao.listPublishedCategories();
   }
 
   async upsertGarment(garment: GarmentModel): Promise<void> {
-    const now = new Date().toISOString();
-    await this.garmentDao.upsert({
-      ...garment,
-      createdAt: now,
-      updatedAt: now,
-    });
+    await this.garmentDao.upsert(toGarmentRow(garment));
   }
 
   async upsertMany(garments: GarmentModel[]): Promise<void> {

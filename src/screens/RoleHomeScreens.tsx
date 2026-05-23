@@ -24,11 +24,18 @@ export function UserHomeScreen({ navigation }: UserProps) {
 
   useFocusEffect(
     useCallback(() => {
-      Promise.all([favoriteDao.list(), lookDao.list()]).then(([favs, looks]) => {
+      const userId = auth.user?.id;
+      if (!userId) {
+        setFavorites(0);
+        setLooksCount(0);
+        return;
+      }
+
+      Promise.all([favoriteDao.listByUserId(userId), lookDao.listByUserId(userId)]).then(([favs, looks]) => {
         setFavorites(favs.filter((f) => f.entityType === 'garment').length);
         setLooksCount(looks.length);
       });
-    }, [favoriteDao, lookDao]),
+    }, [auth.user?.id, favoriteDao, lookDao]),
   );
 
   return (
@@ -76,11 +83,18 @@ export function VendorHomeScreen({ navigation }: VendorProps) {
 
   useFocusEffect(
     useCallback(() => {
-      garmentDao.list().then((rows) => {
+      const vendorId = auth.user?.id;
+      if (!vendorId) {
+        setTotal(0);
+        setLow(0);
+        return;
+      }
+
+      garmentDao.listByVendorId(vendorId).then((rows) => {
         setTotal(rows.length);
         setLow(rows.filter((g) => g.stock > 0 && g.stock <= 5).length);
       });
-    }, [garmentDao]),
+    }, [auth.user?.id, garmentDao]),
   );
 
   return (
@@ -89,7 +103,7 @@ export function VendorHomeScreen({ navigation }: VendorProps) {
       subtitle="Gestiona inventario, publicaciones y disponibilidad de prendas."
       userName={userName}
       stats={[
-        { label: 'Prendas activas', value: String(total) },
+        { label: 'Mis productos', value: String(total) },
         { label: 'Stock bajo', value: String(low) },
       ]}
       quick={[

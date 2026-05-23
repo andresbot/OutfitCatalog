@@ -28,8 +28,9 @@ Presentation  ->  Domain  <-  Data
 ### Base de datos local
 
 - `expo-sqlite` maneja la persistencia local
-- `src/core/database/database.ts` centraliza la apertura, migraciones y seed inicial
+- `src/core/database/database.ts` centraliza la apertura y las migraciones, sin datos iniciales de demostracion
 - Tablas actuales: `garments`, `looks`, `look_items` y `favorites`
+- `garments` guarda `vendor_id`, `vendor_name` y `published` para separar inventario por vendedor y catalogo publicado para clientes
 - El feature `garment` sigue consumiendo un repositorio; solo cambio el origen de datos
 
 ### Feature garment

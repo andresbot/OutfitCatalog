@@ -12,19 +12,21 @@ import { CachedImage } from '../components/CachedImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
+import { useAuth } from '../auth/AuthContext';
 import { GarmentDao } from '../core/database/daos/GarmentDao';
 import { getDatabase } from '../core/database/database';
 import { GarmentRow } from '../core/database/types';
 import { DI_TOKENS } from '../core/di/injectionContainer';
 import { getIt } from '../core/di/getIt';
 import { CreateLookUseCase } from '../features/look/domain/usecases/CreateLookUseCase';
-import { colors, radius, spacing } from '../theme';
+import { colors, radius, shadows, spacing } from '../theme';
 import { RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CreateLookPreview'>;
 
 export function CreateLookPreviewScreen({ navigation, route }: Props) {
   const { garmentIds } = route.params;
+  const auth = useAuth();
   const garmentDao = useMemo(() => new GarmentDao(getDatabase), []);
   const createLookUseCase = useMemo(
     () => getIt.get<CreateLookUseCase>(DI_TOKENS.createLookUseCase),
@@ -52,6 +54,12 @@ export function CreateLookPreviewScreen({ navigation, route }: Props) {
   );
 
   const handleSave = useCallback(async () => {
+    const userId = auth.user?.id;
+    if (!userId) {
+      setError('Debes iniciar sesion para guardar el look.');
+      return;
+    }
+
     if (!garmentIds.length) {
       setError('El look debe tener al menos una prenda.');
       return;
@@ -61,13 +69,13 @@ export function CreateLookPreviewScreen({ navigation, route }: Props) {
     setError('');
 
     try {
-      await createLookUseCase.execute({ name, description, garmentIds });
+      await createLookUseCase.execute({ userId, name, description, garmentIds });
       navigation.navigate('Looks');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al guardar el look.');
       setSaving(false);
     }
-  }, [createLookUseCase, description, garmentIds, name, navigation]);
+  }, [auth.user?.id, createLookUseCase, description, garmentIds, name, navigation]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
@@ -169,48 +177,54 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerSpacer: {
-    width: 40,
+    width: 50,
   },
   brand: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
     color: colors.textPrimary,
-    letterSpacing: 1,
+    letterSpacing: 5,
   },
   backLink: {
-    color: colors.secondary,
-    fontWeight: '600',
+    color: colors.primary,
+    fontWeight: '700',
+    fontSize: 13,
   },
   listContent: {
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.xl,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 28,
+    fontWeight: '800',
     color: colors.textPrimary,
+    letterSpacing: -0.5,
     marginTop: spacing.sm,
   },
   subtitle: {
-    color: colors.textSecondary,
+    color: colors.primary,
     marginTop: spacing.xs,
     marginBottom: spacing.md,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
   },
   field: {
     marginBottom: spacing.md,
   },
   label: {
-    color: colors.textPrimary,
-    fontSize: 12,
+    color: colors.primary,
+    fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 1.5,
     marginBottom: spacing.xs,
   },
   input: {
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderColor: colors.border,
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
@@ -218,13 +232,15 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   inputMultiline: {
-    height: 80,
+    height: 88,
     textAlignVertical: 'top',
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 10,
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
     marginBottom: spacing.sm,
   },
   loader: {
@@ -234,31 +250,34 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     marginBottom: spacing.sm,
     overflow: 'hidden',
+    ...shadows.card,
   },
   garmentImage: {
-    width: 80,
-    height: 80,
+    width: 88,
+    height: 88,
   },
   garmentInfo: {
     flex: 1,
     paddingHorizontal: spacing.md,
-    gap: 2,
+    gap: 3,
   },
   garmentCategory: {
-    color: colors.textMuted,
-    fontSize: 11,
+    color: colors.primary,
+    fontSize: 9,
+    fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 1.5,
   },
   garmentName: {
     color: colors.textPrimary,
     fontWeight: '700',
     fontSize: 14,
+    letterSpacing: -0.2,
   },
   garmentSize: {
     color: colors.textSecondary,
@@ -272,20 +291,25 @@ const styles = StyleSheet.create({
     color: colors.error,
     fontWeight: '600',
     textAlign: 'center',
+    fontSize: 13,
   },
   saveButton: {
-    height: 50,
+    height: 52,
     borderRadius: radius.round,
-    backgroundColor: colors.secondary,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    ...shadows.gold,
   },
   saveButtonDisabled: {
     backgroundColor: colors.border,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   saveButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
+    color: '#0C0C0E',
+    fontWeight: '800',
+    fontSize: 15,
+    letterSpacing: 0.5,
   },
 });

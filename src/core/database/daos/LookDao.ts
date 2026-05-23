@@ -13,6 +13,7 @@ export class LookDao {
     return database.getAllAsync<LookRow>(
       `SELECT
         id,
+        user_id AS userId,
         name,
         description,
         cover_image_url AS coverImageUrl,
@@ -23,11 +24,30 @@ export class LookDao {
     );
   }
 
+  async listByUserId(userId: string): Promise<LookRow[]> {
+    const database = await this.database();
+    return database.getAllAsync<LookRow>(
+      `SELECT
+        id,
+        user_id AS userId,
+        name,
+        description,
+        cover_image_url AS coverImageUrl,
+        created_at AS createdAt,
+        updated_at AS updatedAt
+      FROM looks
+      WHERE user_id = ?
+      ORDER BY updated_at DESC, name ASC`,
+      userId,
+    );
+  }
+
   async getById(id: string): Promise<LookRow | null> {
     const database = await this.database();
     return database.getFirstAsync<LookRow>(
       `SELECT
         id,
+        user_id AS userId,
         name,
         description,
         cover_image_url AS coverImageUrl,
@@ -39,18 +59,38 @@ export class LookDao {
     );
   }
 
+  async getByIdForUser(id: string, userId: string): Promise<LookRow | null> {
+    const database = await this.database();
+    return database.getFirstAsync<LookRow>(
+      `SELECT
+        id,
+        user_id AS userId,
+        name,
+        description,
+        cover_image_url AS coverImageUrl,
+        created_at AS createdAt,
+        updated_at AS updatedAt
+      FROM looks
+      WHERE id = ? AND user_id = ?`,
+      id,
+      userId,
+    );
+  }
+
   async create(look: LookRow): Promise<void> {
     const database = await this.database();
     await database.runAsync(
       `INSERT INTO looks (
         id,
+        user_id,
         name,
         description,
         cover_image_url,
         created_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
       look.id,
+      look.userId,
       look.name,
       look.description,
       look.coverImageUrl,
@@ -79,6 +119,11 @@ export class LookDao {
   async delete(id: string): Promise<void> {
     const database = await this.database();
     await database.runAsync('DELETE FROM looks WHERE id = ?', id);
+  }
+
+  async deleteForUser(id: string, userId: string): Promise<void> {
+    const database = await this.database();
+    await database.runAsync('DELETE FROM looks WHERE id = ? AND user_id = ?', id, userId);
   }
 
   async upsert(look: LookRow): Promise<void> {

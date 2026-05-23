@@ -42,35 +42,35 @@ export default function App() {
 
   return (
     <NetworkProvider>
-    <AuthProvider>
-      <NavigationContainer>
-        <StatusBar style="dark" />
-        <Stack.Navigator
-          initialRouteName="Login"
-          screenOptions={{
-            headerShown: false,
-            animation: 'slide_from_right',
-          }}
-        >
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="Register" component={RegisterScreen} />
-          <Stack.Screen name="UserHome" component={UserHomeScreen} />
-          <Stack.Screen name="VendorHome" component={VendorHomeScreen} />
-          <Stack.Screen name="AdminHome" component={AdminHomeScreen} />
-          <Stack.Screen name="GarmentGallery" component={GarmentGalleryScreen} />
-          <Stack.Screen name="GarmentDetail" component={GarmentDetailScreen} />
-          <Stack.Screen name="Looks" component={LooksScreenByRole} />
-          <Stack.Screen name="LookDetail" component={LookDetailScreen} />
-          <Stack.Screen name="CreateLookPreview" component={CreateLookPreviewScreen} />
-          <Stack.Screen name="Favorites" component={FavoritesScreen} />
-          <Stack.Screen name="InventoryManagement" component={InventoryManagementScreen} />
-          <Stack.Screen name="AddEditGarment" component={AddEditGarmentScreen} />
-          <Stack.Screen name="UserManagement" component={UserManagementScreen} />
-          <Stack.Screen name="AdminReports" component={AdminReportsScreen} />
-          <Stack.Screen name="LookModeration" component={LookModerationScreen} />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </AuthProvider>
+      <AuthProvider>
+        <NavigationContainer>
+          <StatusBar style="dark" />
+          <Stack.Navigator
+            initialRouteName="Login"
+            screenOptions={{
+              headerShown: false,
+              animation: 'slide_from_right',
+            }}
+          >
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen name="UserHome" component={UserHomeScreen} />
+            <Stack.Screen name="VendorHome" component={VendorHomeScreen} />
+            <Stack.Screen name="AdminHome" component={AdminHomeScreen} />
+            <Stack.Screen name="GarmentGallery" component={GarmentGalleryScreen} />
+            <Stack.Screen name="GarmentDetail" component={GarmentDetailScreen} />
+            <Stack.Screen name="Looks" component={LooksScreenByRole} />
+            <Stack.Screen name="LookDetail" component={LookDetailScreen} />
+            <Stack.Screen name="CreateLookPreview" component={CreateLookPreviewScreen} />
+            <Stack.Screen name="Favorites" component={FavoritesScreen} />
+            <Stack.Screen name="InventoryManagement" component={InventoryManagementScreen} />
+            <Stack.Screen name="AddEditGarment" component={AddEditGarmentScreen} />
+            <Stack.Screen name="UserManagement" component={UserManagementScreen} />
+            <Stack.Screen name="AdminReports" component={AdminReportsScreen} />
+            <Stack.Screen name="LookModeration" component={LookModerationScreen} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </AuthProvider>
     </NetworkProvider>
   );
 }

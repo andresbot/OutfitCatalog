@@ -1,15 +1,18 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { CachedImage } from '../components/CachedImage';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useAuth } from '../auth/AuthContext';
+import { CachedImage } from '../components/CachedImage';
+import { HeartButton } from '../components/HeartButton';
 import { FavoriteDao } from '../core/database/daos/FavoriteDao';
 import { getDatabase } from '../core/database/database';
 import { formatCOP } from '../features/garment/presentation/utils/formatCOP';
@@ -20,34 +23,47 @@ import { RootStackParamList } from '../types';
 type Props = NativeStackScreenProps<RootStackParamList, 'GarmentDetail'>;
 
 export function GarmentDetailScreen({ route, navigation }: Props) {
-  const { garment } = useGarmentDetailViewModel(route.params.id);
+  const auth = useAuth();
+  const { garment, loading } = useGarmentDetailViewModel(route.params.id);
   const favoriteDao = useMemo(() => new FavoriteDao(getDatabase), []);
   const [isFavorite, setIsFavorite] = useState(false);
 
   const loadFavorite = useCallback(async () => {
-    const favorite = await favoriteDao.getByEntity('garment', route.params.id);
+    const userId = auth.user?.id;
+    if (!userId) {
+      setIsFavorite(false);
+      return;
+    }
+
+    const favorite = await favoriteDao.getByUserEntity(userId, 'garment', route.params.id);
     setIsFavorite(Boolean(favorite));
-  }, [favoriteDao, route.params.id]);
+  }, [auth.user?.id, favoriteDao, route.params.id]);
 
   const toggleFavorite = useCallback(async () => {
     if (!garment) {
       return;
     }
 
+    const userId = auth.user?.id;
+    if (!userId) {
+      return;
+    }
+
     if (isFavorite) {
-      await favoriteDao.deleteByEntity('garment', garment.id);
+      await favoriteDao.deleteByUserEntity(userId, 'garment', garment.id);
       setIsFavorite(false);
       return;
     }
 
     await favoriteDao.upsert({
-      id: `fav-garment-${garment.id}`,
+      id: `fav-${userId}-garment-${garment.id}`,
+      userId,
       entityType: 'garment',
       entityId: garment.id,
       createdAt: new Date().toISOString(),
     });
     setIsFavorite(true);
-  }, [favoriteDao, garment, isFavorite]);
+  }, [auth.user?.id, favoriteDao, garment, isFavorite]);
 
   useFocusEffect(
     useCallback(() => {
@@ -55,11 +71,22 @@ export function GarmentDetailScreen({ route, navigation }: Props) {
     }, [loadFavorite]),
   );
 
-  if (!garment) {
+  if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.emptyWrap}>
-          <Text style={styles.emptyText}>Prenda no encontrada.</Text>
+          <ActivityIndicator color={colors.secondary} />
+          <Text style={styles.emptyText}>Cargando producto...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!garment || (auth.user?.role === 'user' && !garment.published)) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.emptyWrap}>
+          <Text style={styles.emptyText}>Producto no disponible.</Text>
           <Pressable style={styles.primaryButton} onPress={() => navigation.goBack()}>
             <Text style={styles.primaryButtonText}>Volver</Text>
           </Pressable>
@@ -78,19 +105,16 @@ export function GarmentDetailScreen({ route, navigation }: Props) {
           </Pressable>
         </View>
 
-        <CachedImage uri={garment.imageUrl} style={styles.image} />
+        <View style={styles.imageWrap}>
+          <CachedImage uri={garment.imageUrl} style={styles.image} />
+          <View style={styles.heartOverlay}>
+            <HeartButton isFavorite={isFavorite} onToggle={toggleFavorite} size={28} />
+          </View>
+        </View>
 
         <Text style={styles.name}>{garment.name}</Text>
+        <Text style={styles.vendor}>Publicado por {garment.vendorName}</Text>
         <Text style={styles.description}>{garment.description}</Text>
-
-        <Pressable
-          style={[styles.favoriteButton, isFavorite && styles.favoriteButtonActive]}
-          onPress={toggleFavorite}
-        >
-          <Text style={[styles.favoriteButtonText, isFavorite && styles.favoriteButtonTextActive]}>
-            {isFavorite ? 'Quitar de favoritos' : 'Agregar a favoritos'}
-          </Text>
-        </Pressable>
 
         <View style={styles.chipsWrap}>
           <InfoChip label="Talla" value={garment.size} />
@@ -120,86 +144,92 @@ const styles = StyleSheet.create({
   container: {
     padding: spacing.md,
     paddingBottom: spacing.xl,
+    gap: spacing.md,
   },
   header: {
-    marginBottom: spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   brand: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
     color: colors.textPrimary,
-    letterSpacing: 1,
+    letterSpacing: 5,
   },
   backLink: {
-    color: colors.secondary,
-    fontWeight: '600',
+    color: colors.primary,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  imageWrap: {
+    position: 'relative',
   },
   image: {
     width: '100%',
-    height: 420,
-    borderRadius: radius.md,
-    borderWidth: 1,
+    height: 440,
+    borderRadius: radius.xl,
+    borderWidth: 0.5,
     borderColor: colors.border,
   },
+  heartOverlay: {
+    position: 'absolute',
+    bottom: spacing.md,
+    right: spacing.md,
+    width: 48,
+    height: 48,
+    borderRadius: radius.round,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   name: {
-    marginTop: spacing.md,
-    fontSize: 26,
-    fontWeight: '700',
+    fontSize: 28,
+    fontWeight: '800',
     color: colors.textPrimary,
   },
   description: {
-    marginTop: spacing.xs,
     color: colors.textSecondary,
     lineHeight: 22,
+    fontSize: 14,
+  },
+  vendor: {
+    color: colors.primary,
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1.3,
   },
   chipsWrap: {
-    marginTop: spacing.md,
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
-  favoriteButton: {
-    marginTop: spacing.md,
-    height: 46,
-    borderRadius: radius.round,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  favoriteButtonActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary,
-  },
-  favoriteButtonText: {
-    color: colors.textPrimary,
-    fontWeight: '700',
-  },
-  favoriteButtonTextActive: {
-    color: '#fff',
-  },
   chip: {
     width: '48%',
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderColor: colors.border,
-    borderRadius: radius.sm,
-    padding: spacing.sm,
+    borderRadius: radius.lg,
+    padding: spacing.md,
     backgroundColor: colors.surface,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
   },
   chipLabel: {
-    color: colors.textMuted,
-    fontSize: 12,
+    color: colors.primary,
+    fontSize: 9,
+    fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 1.5,
   },
   chipValue: {
-    marginTop: 4,
+    marginTop: 6,
     color: colors.textPrimary,
     fontWeight: '700',
+    fontSize: 15,
   },
   emptyWrap: {
     flex: 1,
@@ -212,7 +242,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   primaryButton: {
-    height: 44,
+    height: 48,
     borderRadius: radius.round,
     backgroundColor: colors.primary,
     justifyContent: 'center',
@@ -220,7 +250,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   primaryButtonText: {
-    color: '#fff',
-    fontWeight: '700',
+    color: '#0C0C0E',
+    fontWeight: '800',
+    fontSize: 14,
   },
 });

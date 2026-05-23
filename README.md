@@ -43,6 +43,27 @@ Scripts utiles:
 - `npm run web`
 - `npm run build`
 
+## Configuracion Android en Windows
+
+Si `npm run android` o Expo no pueden detectar emuladores, revisa la ruta del SDK de Android en Windows. En esta maquina el emulador suele estar en:
+
+```powershell
+%LOCALAPPDATA%\Android\Sdk\emulator\emulator.exe
+```
+
+Variables recomendadas:
+
+- `ANDROID_SDK_ROOT=%LOCALAPPDATA%\Android\Sdk`
+- `ANDROID_HOME=%LOCALAPPDATA%\Android\Sdk`
+
+Para validar los emuladores disponibles, ejecuta:
+
+```powershell
+"%LOCALAPPDATA%\Android\Sdk\emulator\emulator.exe" -list-avds
+```
+
+Si ese comando no devuelve nada, crea al menos un AVD desde Android Studio antes de volver a ejecutar `npm run android`.
+
 ## Configuracion Firebase (US-06)
 
 La sincronizacion remota usa Firestore via variables de entorno `EXPO_PUBLIC_*`.

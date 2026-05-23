@@ -1,6 +1,5 @@
 import * as SQLite from 'expo-sqlite';
 import { DATABASE_NAME, DATABASE_VERSION, migrations } from './migrations';
-import { GarmentRow } from './types';
 import { SqliteClient, SqliteClientProvider } from './sqliteClient';
 
 let databasePromise: Promise<SqliteClient> | null = null;
@@ -31,37 +30,6 @@ async function applyMigration(
   );
 }
 
-async function seedGarments(database: SqliteClient, garments: GarmentRow[]): Promise<void> {
-  for (const garment of garments) {
-    await database.runAsync(
-      `INSERT OR IGNORE INTO garments (
-        id,
-        name,
-        category,
-        price,
-        image_url,
-        description,
-        size,
-        color,
-        stock,
-        created_at,
-        updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      garment.id,
-      garment.name,
-      garment.category,
-      garment.price,
-      garment.imageUrl,
-      garment.description,
-      garment.size,
-      garment.color,
-      garment.stock,
-      garment.createdAt,
-      garment.updatedAt,
-    );
-  }
-}
-
 async function initializeDatabase(): Promise<SqliteClient> {
   const database = (await SQLite.openDatabaseAsync(DATABASE_NAME)) as unknown as SqliteClient;
   await database.execAsync('PRAGMA foreign_keys = ON;');
@@ -87,10 +55,6 @@ async function initializeDatabase(): Promise<SqliteClient> {
     await database.execAsync('BEGIN');
     try {
       await applyMigration(database, migration.version, migration.statements);
-
-      if (migration.seedGarments?.length) {
-        await seedGarments(database, migration.seedGarments);
-      }
 
       await database.execAsync('COMMIT');
     } catch (error) {
@@ -121,7 +85,7 @@ export function getDatabase(): Promise<SqliteClient> {
 export type DatabaseTableSnapshot = {
   name: string;
   rowCount: number;
-  sampleRows: Record<string, unknown>[];
+  previewRows: Record<string, unknown>[];
 };
 
 export type DatabaseSnapshot = {
@@ -152,14 +116,14 @@ export async function getDatabaseSnapshot(): Promise<DatabaseSnapshot> {
     const countRow = await database.getFirstAsync<{ count: number }>(
       `SELECT COUNT(*) AS count FROM ${table.name}`,
     );
-    const sampleRows = await database.getAllAsync<Record<string, unknown>>(
+    const previewRows = await database.getAllAsync<Record<string, unknown>>(
       `SELECT * FROM ${table.name} LIMIT 5`,
     );
 
     tables.push({
       name: table.name,
       rowCount: Number(countRow?.count ?? 0),
-      sampleRows,
+      previewRows,
     });
   }
 

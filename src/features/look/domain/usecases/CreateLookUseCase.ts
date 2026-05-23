@@ -5,6 +5,10 @@ export class CreateLookUseCase {
   constructor(private readonly lookRepository: LookRepository) {}
 
   async execute(input: CreateLookInput): Promise<Look> {
+    if (!input.userId.trim()) {
+      throw new Error('Debes iniciar sesion para guardar el look.');
+    }
+
     if (!input.garmentIds.length) {
       throw new Error('El look debe tener al menos una prenda.');
     }

@@ -8,4 +8,7 @@ export interface Garment {
   size: string;
   color: string;
   stock: number;
+  vendorId: string;
+  vendorName: string;
+  published: boolean;
 }

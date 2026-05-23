@@ -1,7 +1,9 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
+  Alert,
+  FlatList,
   Pressable,
-  ScrollView,
+  RefreshControl,
   StyleSheet,
   Text,
   View,
@@ -9,11 +11,12 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../auth/AuthContext';
 import { GarmentDao } from '../core/database/daos/GarmentDao';
 import { LookDao } from '../core/database/daos/LookDao';
 import { LookItemDao } from '../core/database/daos/LookItemDao';
 import { getDatabase } from '../core/database/database';
-import { colors, spacing } from '../theme';
+import { colors, radius, shadows, spacing } from '../theme';
 import { RootStackParamList } from '../types';
 import { LookCard as LookCardComponent } from '../components/LookCard';
 
@@ -31,12 +34,14 @@ type LookCardData = {
 type SortOrder = 'date-desc' | 'date-asc' | 'name-asc' | 'name-desc';
 
 export function LooksScreen({ navigation }: Props) {
+  const auth = useAuth();
   const lookDao = useMemo(() => new LookDao(getDatabase), []);
   const lookItemDao = useMemo(() => new LookItemDao(getDatabase), []);
   const garmentDao = useMemo(() => new GarmentDao(getDatabase), []);
 
   const [looks, setLooks] = useState<LookCardData[]>([]);
   const [sortOrder, setSortOrder] = useState<SortOrder>('date-desc');
+  const [refreshing, setRefreshing] = useState(false);
 
   const sortLooks = useCallback(
     (looksToSort: LookCardData[]): LookCardData[] => {
@@ -62,7 +67,13 @@ export function LooksScreen({ navigation }: Props) {
   );
 
   const loadLooks = useCallback(async () => {
-    const rows = await lookDao.list();
+    const userId = auth.user?.id;
+    if (!userId) {
+      setLooks([]);
+      return;
+    }
+
+    const rows = await lookDao.listByUserId(userId);
     const cards = await Promise.all(
       rows.map(async (look) => {
         const items = await lookItemDao.listByLookId(look.id);
@@ -84,15 +95,39 @@ export function LooksScreen({ navigation }: Props) {
       }),
     );
     setLooks(sortLooks(cards));
-  }, [lookDao, lookItemDao, garmentDao, sortLooks]);
+  }, [auth.user?.id, lookDao, lookItemDao, garmentDao, sortLooks]);
 
   const deleteLook = useCallback(
-    async (lookId: string) => {
-      await lookDao.delete(lookId);
-      await loadLooks();
+    (lookId: string, lookName: string) => {
+      Alert.alert(
+        'Eliminar look',
+        `¿Eliminar "${lookName}"? Esta accion no se puede deshacer.`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Eliminar',
+            style: 'destructive',
+            onPress: async () => {
+              const userId = auth.user?.id;
+              if (!userId) {
+                return;
+              }
+
+              await lookDao.deleteForUser(lookId, userId);
+              await loadLooks();
+            },
+          },
+        ],
+      );
     },
-    [lookDao, loadLooks],
+    [auth.user?.id, lookDao, loadLooks],
   );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadLooks();
+    setRefreshing(false);
+  }, [loadLooks]);
 
   useFocusEffect(
     useCallback(() => {
@@ -100,78 +135,87 @@ export function LooksScreen({ navigation }: Props) {
     }, [loadLooks]),
   );
 
+  const renderHeader = () => (
+    <View style={styles.headerContainer}>
+      <View style={styles.header}>
+        <Text style={styles.brand}>ATELIER</Text>
+        <Pressable onPress={() => navigation.goBack()}>
+          <Text style={styles.backLink}>Volver</Text>
+        </Pressable>
+      </View>
+
+      <Text style={styles.title}>Mis looks</Text>
+
+      <Pressable
+        style={styles.primaryButton}
+        onPress={() => navigation.navigate('GarmentGallery', { selectionMode: true })}
+      >
+        <Text style={styles.primaryButtonText}>Nuevo look</Text>
+      </Pressable>
+
+      {looks.length > 0 && (
+        <View style={styles.sortContainer}>
+          <Text style={styles.sortLabel}>Ordenar por:</Text>
+          <View style={styles.sortButtonsRow}>
+            <Pressable
+              style={[
+                styles.sortButton,
+                sortOrder === 'date-desc' && styles.sortButtonActive,
+              ]}
+              onPress={() => {
+                setSortOrder('date-desc');
+                setLooks((prev) => sortLooks(prev));
+              }}
+            >
+              <Text
+                style={[
+                  styles.sortButtonText,
+                  sortOrder === 'date-desc' && styles.sortButtonTextActive,
+                ]}
+              >
+                Reciente
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.sortButton,
+                sortOrder === 'name-asc' && styles.sortButtonActive,
+              ]}
+              onPress={() => {
+                setSortOrder('name-asc');
+                setLooks((prev) => sortLooks(prev));
+              }}
+            >
+              <Text
+                style={[
+                  styles.sortButtonText,
+                  sortOrder === 'name-asc' && styles.sortButtonTextActive,
+                ]}
+              >
+                A-Z
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+
+  const renderEmpty = () => (
+    <View style={styles.emptyContainer}>
+      <Text style={styles.empty}>No hay looks creados todavía.</Text>
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.brand}>ATELIER</Text>
-          <Pressable onPress={() => navigation.goBack()}>
-            <Text style={styles.backLink}>Volver</Text>
-          </Pressable>
-        </View>
-
-        <Text style={styles.title}>Mis looks</Text>
-
-        <Pressable
-          style={styles.primaryButton}
-          onPress={() => navigation.navigate('GarmentGallery', { selectionMode: true })}
-        >
-          <Text style={styles.primaryButtonText}>Nuevo look</Text>
-        </Pressable>
-
-        {looks.length > 0 && (
-          <View style={styles.sortContainer}>
-            <Text style={styles.sortLabel}>Ordenar por:</Text>
-            <View style={styles.sortButtonsRow}>
-              <Pressable
-                style={[
-                  styles.sortButton,
-                  sortOrder === 'date-desc' && styles.sortButtonActive,
-                ]}
-                onPress={() => {
-                  setSortOrder('date-desc');
-                  setLooks((prev) => sortLooks(prev));
-                }}
-              >
-                <Text
-                  style={[
-                    styles.sortButtonText,
-                    sortOrder === 'date-desc' && styles.sortButtonTextActive,
-                  ]}
-                >
-                  Reciente
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[
-                  styles.sortButton,
-                  sortOrder === 'name-asc' && styles.sortButtonActive,
-                ]}
-                onPress={() => {
-                  setSortOrder('name-asc');
-                  setLooks((prev) => sortLooks(prev));
-                }}
-              >
-                <Text
-                  style={[
-                    styles.sortButtonText,
-                    sortOrder === 'name-asc' && styles.sortButtonTextActive,
-                  ]}
-                >
-                  A-Z
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        )}
-
-        {!looks.length ? (
-          <Text style={styles.empty}>No hay looks creados todavía.</Text>
-        ) : null}
-
-        {looks.map((look) => (
+      <FlatList
+        ListHeaderComponent={renderHeader}
+        ListEmptyComponent={renderEmpty}
+        data={looks}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item: look }) => (
           <LookCardComponent
-            key={look.id}
             id={look.id}
             name={look.name}
             description={look.description}
@@ -179,10 +223,12 @@ export function LooksScreen({ navigation }: Props) {
             coverImages={look.coverImages}
             onPress={() => navigation.navigate('LookDetail', { lookId: look.id })}
             onEdit={() => navigation.navigate('LookDetail', { lookId: look.id })}
-            onDelete={() => deleteLook(look.id)}
+            onDelete={() => deleteLook(look.id, look.name)}
           />
-        ))}
-      </ScrollView>
+        )}
+        contentContainerStyle={styles.container}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      />
     </SafeAreaView>
   );
 }
@@ -193,8 +239,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   container: {
-    padding: spacing.md,
     paddingBottom: spacing.xl,
+  },
+  headerContainer: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
   },
   header: {
     marginBottom: spacing.md,
@@ -202,46 +252,57 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  emptyContainer: {
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 300,
+  },
   brand: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
     color: colors.textPrimary,
-    letterSpacing: 1,
+    letterSpacing: 5,
   },
   backLink: {
-    color: colors.secondary,
-    fontWeight: '600',
+    color: colors.primary,
+    fontWeight: '700',
+    fontSize: 13,
   },
   title: {
     color: colors.textPrimary,
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: -0.5,
     marginBottom: spacing.md,
   },
   primaryButton: {
-    height: 46,
-    borderRadius: spacing.lg,
+    height: 52,
+    borderRadius: radius.round,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.md,
+    ...shadows.gold,
   },
   primaryButtonText: {
-    color: '#fff',
-    fontWeight: '700',
+    color: '#0C0C0E',
+    fontWeight: '800',
+    fontSize: 14,
+    letterSpacing: 0.5,
   },
   sortContainer: {
     marginBottom: spacing.md,
     paddingBottom: spacing.sm,
-    borderBottomWidth: 1,
+    borderBottomWidth: 0.5,
     borderBottomColor: colors.border,
   },
   sortLabel: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '700',
     color: colors.textMuted,
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 2,
     marginBottom: spacing.xs,
   },
   sortButtonsRow: {
@@ -251,16 +312,17 @@ const styles = StyleSheet.create({
   sortButton: {
     flex: 1,
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: spacing.lg,
-    borderWidth: 1,
+    paddingVertical: 7,
+    borderRadius: radius.round,
+    borderWidth: 0.5,
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.surface,
   },
   sortButtonActive: {
-    backgroundColor: colors.secondary,
-    borderColor: colors.secondary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   sortButtonText: {
     fontSize: 12,
@@ -268,9 +330,11 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   sortButtonTextActive: {
-    color: '#fff',
+    color: '#0C0C0E',
+    fontWeight: '800',
   },
   empty: {
     color: colors.textSecondary,
+    fontSize: 14,
   },
 });

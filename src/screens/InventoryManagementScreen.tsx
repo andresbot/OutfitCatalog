@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   Pressable,
@@ -12,27 +13,62 @@ import { CachedImage } from '../components/CachedImage';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useAuth } from '../auth/AuthContext';
 import { GarmentDao } from '../core/database/daos/GarmentDao';
 import { getDatabase } from '../core/database/database';
 import { GarmentRow } from '../core/database/types';
+import { getIt } from '../core/di/getIt';
+import { DI_TOKENS } from '../core/di/injectionContainer';
+import { GarmentRemoteDataSource } from '../features/garment/data/datasources/GarmentRemoteDataSource';
 import { formatCOP } from '../features/garment/presentation/utils/formatCOP';
-import { colors, radius, spacing } from '../theme';
+import { colors, radius, shadows, spacing } from '../theme';
 import { RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'InventoryManagement'>;
 
 const LOW_STOCK_THRESHOLD = 5;
 
+function getDeleteError(error: any): string {
+  if (error?.code === 'permission-denied') {
+    return 'Firestore rechazo la eliminacion. Revisa reglas de la coleccion garments.';
+  }
+
+  return error?.message ?? 'No se pudo eliminar el producto.';
+}
+
 export function InventoryManagementScreen({ navigation }: Props) {
+  const auth = useAuth();
   const garmentDao = useMemo(() => new GarmentDao(getDatabase), []);
+  const garmentRemoteDataSource = useMemo(
+    () => getIt.get<GarmentRemoteDataSource>(DI_TOKENS.garmentRemoteDataSource),
+    [],
+  );
   const [garments, setGarments] = useState<GarmentRow[]>([]);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'low' | 'out'>('all');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const loadGarments = useCallback(async () => {
-    const rows = await garmentDao.list();
-    setGarments(rows);
-  }, [garmentDao]);
+    const vendorId = auth.user?.id;
+    if (!vendorId || auth.user?.role !== 'vendor') {
+      setGarments([]);
+      setError('Debes iniciar sesion como vendedor para ver tu inventario.');
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    try {
+      const rows = await garmentDao.listByVendorId(vendorId);
+      setGarments(rows);
+    } catch {
+      setError('No se pudo cargar tu inventario.');
+    } finally {
+      setLoading(false);
+    }
+  }, [auth.user?.id, auth.user?.role, garmentDao]);
 
   useFocusEffect(
     useCallback(() => {
@@ -69,7 +105,7 @@ export function InventoryManagementScreen({ navigation }: Props) {
   const handleDelete = useCallback(
     (garment: GarmentRow) => {
       Alert.alert(
-        'Eliminar prenda',
+        'Eliminar producto',
         `Vas a eliminar "${garment.name}". Esta accion no se puede deshacer.`,
         [
           { text: 'Cancelar', style: 'cancel' },
@@ -77,14 +113,26 @@ export function InventoryManagementScreen({ navigation }: Props) {
             text: 'Eliminar',
             style: 'destructive',
             onPress: async () => {
-              await garmentDao.delete(garment.id);
-              await loadGarments();
+              const vendorId = auth.user?.id;
+              if (!vendorId) {
+                return;
+              }
+              try {
+                if (garmentRemoteDataSource.isConfigured()) {
+                  await garmentRemoteDataSource.deleteGarment(garment.id);
+                }
+
+                await garmentDao.deleteForVendor(garment.id, vendorId);
+                await loadGarments();
+              } catch (error) {
+                Alert.alert('No se pudo eliminar', getDeleteError(error));
+              }
             },
           },
         ],
       );
     },
-    [garmentDao, loadGarments],
+    [auth.user?.id, garmentDao, garmentRemoteDataSource, loadGarments],
   );
 
   return (
@@ -116,7 +164,7 @@ export function InventoryManagementScreen({ navigation }: Props) {
         style={styles.primaryButton}
         onPress={() => navigation.navigate('AddEditGarment')}
       >
-        <Text style={styles.primaryButtonText}>+ Agregar nueva prenda</Text>
+        <Text style={styles.primaryButtonText}>+ Agregar nuevo producto</Text>
       </Pressable>
 
       <View style={styles.filtersRow}>
@@ -146,60 +194,81 @@ export function InventoryManagementScreen({ navigation }: Props) {
         autoCapitalize="none"
       />
 
-      <FlatList
-        data={filteredGarments}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyText}>No hay prendas que coincidan.</Text>
-          </View>
-        }
-        renderItem={({ item }) => {
-          const stockColor =
-            item.stock === 0
-              ? colors.error
-              : item.stock <= LOW_STOCK_THRESHOLD
-              ? '#C76900'
-              : colors.secondary;
-          return (
-            <View style={styles.row}>
-              <CachedImage uri={item.imageUrl} style={styles.thumb} />
-              <View style={styles.rowBody}>
-                <Text style={styles.itemCategory}>{item.category}</Text>
-                <Text style={styles.itemName}>{item.name}</Text>
-                <Text style={styles.itemPrice}>{formatCOP(item.price)}</Text>
-                <Text style={[styles.stockBadge, { color: stockColor }]}>
-                  Stock: {item.stock}
-                  {item.stock === 0
-                    ? ' (Agotado)'
-                    : item.stock <= LOW_STOCK_THRESHOLD
-                    ? ' (Bajo)'
-                    : ''}
-                </Text>
-              </View>
-              <View style={styles.actions}>
-                <Pressable
-                  style={styles.actionButton}
-                  onPress={() =>
-                    navigation.navigate('AddEditGarment', { garmentId: item.id })
-                  }
-                >
-                  <Text style={styles.actionButtonText}>Editar</Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.actionButton, styles.actionButtonDanger]}
-                  onPress={() => handleDelete(item)}
-                >
-                  <Text style={[styles.actionButtonText, styles.actionButtonTextDanger]}>
-                    Eliminar
-                  </Text>
-                </Pressable>
-              </View>
+      {loading ? (
+        <View style={styles.loadingPanel}>
+          <ActivityIndicator color={colors.secondary} />
+          <Text style={styles.loadingText}>Cargando tu inventario...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredGarments}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Text style={styles.emptyText}>
+                {error || 'No tienes productos que coincidan.'}
+              </Text>
             </View>
-          );
-        }}
-      />
+          }
+          renderItem={({ item }) => {
+            const stockColor =
+              item.stock === 0
+                ? colors.error
+                : item.stock <= LOW_STOCK_THRESHOLD
+                ? '#C76900'
+                : colors.secondary;
+            return (
+              <View style={styles.row}>
+                <CachedImage uri={item.imageUrl} style={styles.thumb} />
+                <View style={styles.rowBody}>
+                  <View style={styles.itemHeaderRow}>
+                    <Text style={styles.itemCategory}>{item.category}</Text>
+                    <View style={[styles.publishBadge, item.published !== 1 && styles.draftBadge]}>
+                      <Text
+                        style={[
+                          styles.publishBadgeText,
+                          item.published !== 1 && styles.draftBadgeText,
+                        ]}
+                      >
+                        {item.published === 1 ? 'Publicado' : 'Borrador'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.itemName}>{item.name}</Text>
+                  <Text style={styles.itemPrice}>{formatCOP(item.price)}</Text>
+                  <Text style={[styles.stockBadge, { color: stockColor }]}>
+                    Stock: {item.stock}
+                    {item.stock === 0
+                      ? ' (Agotado)'
+                      : item.stock <= LOW_STOCK_THRESHOLD
+                      ? ' (Bajo)'
+                      : ''}
+                  </Text>
+                </View>
+                <View style={styles.actions}>
+                  <Pressable
+                    style={styles.actionButton}
+                    onPress={() =>
+                      navigation.navigate('AddEditGarment', { garmentId: item.id })
+                    }
+                  >
+                    <Text style={styles.actionButtonText}>Editar</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.actionButton, styles.actionButtonDanger]}
+                    onPress={() => handleDelete(item)}
+                  >
+                    <Text style={[styles.actionButtonText, styles.actionButtonTextDanger]}>
+                      Eliminar
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            );
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -215,104 +284,132 @@ const styles = StyleSheet.create({
   },
   brand: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
     color: colors.textPrimary,
-    letterSpacing: 1,
+    letterSpacing: 5,
   },
-  backLink: { color: colors.secondary, fontWeight: '600' },
+  backLink: { color: colors.primary, fontWeight: '700', fontSize: 13 },
   statsRow: {
     flexDirection: 'row',
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
   statCard: {
     flex: 1,
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     backgroundColor: colors.surface,
-    padding: spacing.sm,
+    padding: spacing.md,
+    ...shadows.card,
   },
-  statLabel: { color: colors.textMuted, fontSize: 11 },
+  statLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
   statValue: {
-    marginTop: 2,
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.secondary,
+    marginTop: 6,
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.primary,
   },
   primaryButton: {
     marginHorizontal: spacing.md,
-    height: 46,
+    height: 52,
     borderRadius: radius.round,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
+    ...shadows.gold,
   },
-  primaryButtonText: { color: '#fff', fontWeight: '700' },
+  primaryButtonText: { color: '#0C0C0E', fontWeight: '800', fontSize: 14, letterSpacing: 0.5 },
   filtersRow: {
     flexDirection: 'row',
     gap: spacing.xs,
     paddingHorizontal: spacing.md,
-    marginBottom: spacing.xs,
+    marginBottom: spacing.sm,
   },
   filterChip: {
     flex: 1,
-    paddingVertical: spacing.xs,
+    paddingVertical: 7,
     borderRadius: radius.round,
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderColor: colors.border,
     backgroundColor: colors.surface,
     alignItems: 'center',
   },
   filterChipActive: { borderColor: colors.primary, backgroundColor: colors.primary },
   filterChipText: { fontSize: 12, fontWeight: '600', color: colors.textSecondary },
-  filterChipTextActive: { color: '#fff' },
+  filterChipTextActive: { color: '#0C0C0E', fontWeight: '800' },
   search: {
     marginHorizontal: spacing.md,
     height: 44,
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderColor: colors.border,
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.md,
     color: colors.textPrimary,
     marginBottom: spacing.sm,
+    fontSize: 14,
   },
   listContent: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl, gap: spacing.sm },
+  loadingPanel: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    padding: spacing.xl,
+  },
+  loadingText: { color: colors.textSecondary, fontSize: 13 },
   row: {
     flexDirection: 'row',
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     backgroundColor: colors.surface,
     padding: spacing.sm,
     gap: spacing.sm,
+    ...shadows.card,
   },
-  thumb: { width: 72, height: 72, borderRadius: radius.sm, backgroundColor: colors.border },
-  rowBody: { flex: 1 },
+  thumb: { width: 80, height: 80, borderRadius: radius.md, backgroundColor: colors.border },
+  rowBody: { flex: 1, justifyContent: 'center', gap: 2 },
+  itemHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    flexWrap: 'wrap',
+  },
   itemCategory: {
-    color: colors.textMuted,
-    fontSize: 11,
+    color: colors.primary,
+    fontSize: 9,
+    fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 1.5,
   },
   itemName: { color: colors.textPrimary, fontWeight: '700', fontSize: 14 },
-  itemPrice: { color: colors.secondary, fontWeight: '700', marginTop: 2 },
-  stockBadge: { marginTop: 4, fontSize: 12, fontWeight: '600' },
-  actions: { justifyContent: 'space-between', gap: spacing.xs },
+  itemPrice: { color: colors.primary, fontWeight: '800', fontSize: 13 },
+  stockBadge: { fontSize: 12, fontWeight: '700' },
+  publishBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: radius.round,
+    backgroundColor: colors.primary,
+  },
+  publishBadgeText: { color: '#0C0C0E', fontSize: 9, fontWeight: '800' },
+  draftBadge: { backgroundColor: colors.surfaceHigh, borderWidth: 0.5, borderColor: colors.border },
+  draftBadgeText: { color: colors.textSecondary },
+  actions: { justifyContent: 'center', gap: spacing.xs },
   actionButton: {
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
     borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
+    borderWidth: 0.5,
+    borderColor: colors.borderLight,
+    backgroundColor: colors.surfaceHigh,
   },
-  actionButtonText: { color: colors.textPrimary, fontWeight: '600', fontSize: 12 },
-  actionButtonDanger: { borderColor: colors.error, backgroundColor: '#FFF0F0' },
+  actionButtonText: { color: colors.textPrimary, fontWeight: '700', fontSize: 12 },
+  actionButtonDanger: { borderColor: colors.error, backgroundColor: 'rgba(224,82,82,0.1)' },
   actionButtonTextDanger: { color: colors.error },
-  empty: { alignItems: 'center', marginTop: spacing.lg },
-  emptyText: { color: colors.textSecondary },
+  empty: { alignItems: 'center', marginTop: spacing.xl },
+  emptyText: { color: colors.textSecondary, fontSize: 14 },
 });

@@ -38,7 +38,7 @@ export function CachedImage({ uri, style, contentFit = 'cover' }: Props) {
     if (__DEV__) {
       const ms = Date.now() - loadStartRef.current;
       if (ms > 2000) {
-        console.warn(`[CachedImage] Slow load ${ms}ms — ${uri}`);
+        console.warn(`[CachedImage] Slow load ${ms}ms - ${uri}`);
       }
     }
     loopRef.current?.stop();

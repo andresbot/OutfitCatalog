@@ -16,11 +16,17 @@ import { SearchGarmentsUseCase } from '../../features/garment/domain/usecases/Se
 import { SyncGarmentsUseCase } from '../../features/garment/domain/usecases/SyncGarmentsUseCase';
 import { LookDao } from '../../core/database/daos/LookDao';
 import { LookItemDao } from '../../core/database/daos/LookItemDao';
+import { FavoriteDao } from '../../core/database/daos/FavoriteDao';
 import { getDatabase } from '../../core/database/database';
 import { LookRepositoryImpl } from '../../features/look/data/repositories/LookRepositoryImpl';
 import { LookRepository } from '../../features/look/domain/repositories/LookRepository';
 import { CreateLookUseCase } from '../../features/look/domain/usecases/CreateLookUseCase';
 import { GetAllLooksUseCase } from '../../features/look/domain/usecases/GetAllLooksUseCase';
+import { FavoriteRepositoryImpl } from '../../features/favorite/data/repositories/FavoriteRepositoryImpl';
+import { FavoriteRepository } from '../../features/favorite/domain/repositories/FavoriteRepository';
+import { AddFavoriteUseCase } from '../../features/favorite/domain/usecases/AddFavoriteUseCase';
+import { RemoveFavoriteUseCase } from '../../features/favorite/domain/usecases/RemoveFavoriteUseCase';
+import { IsFavoriteUseCase } from '../../features/favorite/domain/usecases/IsFavoriteUseCase';
 import { getIt } from './getIt';
 
 export const DI_TOKENS = {
@@ -36,6 +42,10 @@ export const DI_TOKENS = {
   lookRepository: 'lookRepository',
   createLookUseCase: 'createLookUseCase',
   getAllLooksUseCase: 'getAllLooksUseCase',
+  favoriteRepository: 'favoriteRepository',
+  addFavoriteUseCase: 'addFavoriteUseCase',
+  removeFavoriteUseCase: 'removeFavoriteUseCase',
+  isFavoriteUseCase: 'isFavoriteUseCase',
 } as const;
 
 export function initDependencies(): void {
@@ -108,5 +118,25 @@ export function initDependencies(): void {
   getIt.registerSingleton(
     DI_TOKENS.getAllLooksUseCase,
     new GetAllLooksUseCase(getIt.get<LookRepository>(DI_TOKENS.lookRepository)),
+  );
+
+  getIt.registerSingleton<FavoriteRepository>(
+    DI_TOKENS.favoriteRepository,
+    new FavoriteRepositoryImpl(new FavoriteDao(getDatabase)),
+  );
+
+  getIt.registerSingleton(
+    DI_TOKENS.addFavoriteUseCase,
+    new AddFavoriteUseCase(getIt.get<FavoriteRepository>(DI_TOKENS.favoriteRepository)),
+  );
+
+  getIt.registerSingleton(
+    DI_TOKENS.removeFavoriteUseCase,
+    new RemoveFavoriteUseCase(getIt.get<FavoriteRepository>(DI_TOKENS.favoriteRepository)),
+  );
+
+  getIt.registerSingleton(
+    DI_TOKENS.isFavoriteUseCase,
+    new IsFavoriteUseCase(getIt.get<FavoriteRepository>(DI_TOKENS.favoriteRepository)),
   );
 }

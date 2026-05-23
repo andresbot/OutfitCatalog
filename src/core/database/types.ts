@@ -8,12 +8,16 @@ export type GarmentRow = {
   size: string;
   color: string;
   stock: number;
+  vendorId: string;
+  vendorName: string;
+  published: number;
   createdAt: string;
   updatedAt: string;
 };
 
 export type LookRow = {
   id: string;
+  userId: string;
   name: string;
   description: string;
   coverImageUrl: string | null;
@@ -30,6 +34,7 @@ export type LookItemRow = {
 
 export type FavoriteRow = {
   id: string;
+  userId: string;
   entityType: string;
   entityId: string;
   createdAt: string;

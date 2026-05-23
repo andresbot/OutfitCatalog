@@ -19,6 +19,15 @@ function isSameFavorite(favorite: FavoriteRow, entityType: string, entityId: str
   return favorite.entityType === entityType && favorite.entityId === entityId;
 }
 
+function isSameUserFavorite(
+  favorite: FavoriteRow,
+  userId: string,
+  entityType: string,
+  entityId: string,
+): boolean {
+  return favorite.userId === userId && isSameFavorite(favorite, entityType, entityId);
+}
+
 function normalizeSql(sql: string): string {
   return sql.replace(/\s+/g, ' ').trim();
 }
@@ -82,8 +91,11 @@ export function createInMemorySqliteClient(initialState?: Partial<DatabaseState>
           size: String(params[6]),
           color: String(params[7]),
           stock: Number(params[8]),
-          createdAt: String(params[9]),
-          updatedAt: String(params[10]),
+          vendorId: String(params[9]),
+          vendorName: String(params[10]),
+          published: Number(params[11]),
+          createdAt: String(params[12]),
+          updatedAt: String(params[13]),
         };
 
         const existingIndex = state.garments.findIndex((garment) => garment.id === row.id);
@@ -97,7 +109,7 @@ export function createInMemorySqliteClient(initialState?: Partial<DatabaseState>
       }
 
       if (normalizedSql.includes('UPDATE garments')) {
-        const id = String(params[9]);
+        const id = String(params[12]);
         const index = state.garments.findIndex((garment) => garment.id === id);
         if (index >= 0) {
           state.garments[index] = {
@@ -110,11 +122,24 @@ export function createInMemorySqliteClient(initialState?: Partial<DatabaseState>
             size: String(params[5]),
             color: String(params[6]),
             stock: Number(params[7]),
-            updatedAt: String(params[8]),
+            vendorId: String(params[8]),
+            vendorName: String(params[9]),
+            published: Number(params[10]),
+            updatedAt: String(params[11]),
           };
         }
 
         return { rowsAffected: index >= 0 ? 1 : 0, lastInsertRowId: 0 };
+      }
+
+      if (normalizedSql.includes('DELETE FROM garments WHERE id = ? AND vendor_id = ?')) {
+        const id = String(params[0]);
+        const vendorId = String(params[1]);
+        const before = state.garments.length;
+        state.garments = state.garments.filter(
+          (garment) => garment.id !== id || garment.vendorId !== vendorId,
+        );
+        return { rowsAffected: before - state.garments.length, lastInsertRowId: 0 };
       }
 
       if (normalizedSql.includes('DELETE FROM garments')) {
@@ -127,11 +152,12 @@ export function createInMemorySqliteClient(initialState?: Partial<DatabaseState>
       if (normalizedSql.includes('INSERT INTO looks')) {
         const row: LookRow = {
           id: String(params[0]),
-          name: String(params[1]),
-          description: String(params[2]),
-          coverImageUrl: params[3] == null ? null : String(params[3]),
-          createdAt: String(params[4]),
-          updatedAt: String(params[5]),
+          userId: String(params[1]),
+          name: String(params[2]),
+          description: String(params[3]),
+          coverImageUrl: params[4] == null ? null : String(params[4]),
+          createdAt: String(params[5]),
+          updatedAt: String(params[6]),
         };
 
         const existingIndex = state.looks.findIndex((look) => look.id === row.id);
@@ -158,6 +184,17 @@ export function createInMemorySqliteClient(initialState?: Partial<DatabaseState>
         }
 
         return { rowsAffected: index >= 0 ? 1 : 0, lastInsertRowId: 0 };
+      }
+
+      if (normalizedSql.includes('DELETE FROM looks WHERE id = ? AND user_id = ?')) {
+        const id = String(params[0]);
+        const userId = String(params[1]);
+        const before = state.looks.length;
+        state.looks = state.looks.filter((look) => look.id !== id || look.userId !== userId);
+        state.lookItems = state.lookItems.filter((item) =>
+          state.looks.some((look) => look.id === item.lookId),
+        );
+        return { rowsAffected: before - state.looks.length, lastInsertRowId: 0 };
       }
 
       if (normalizedSql.includes('DELETE FROM looks')) {
@@ -217,9 +254,10 @@ export function createInMemorySqliteClient(initialState?: Partial<DatabaseState>
       if (normalizedSql.includes('INSERT INTO favorites')) {
         const row: FavoriteRow = {
           id: String(params[0]),
-          entityType: String(params[1]),
-          entityId: String(params[2]),
-          createdAt: String(params[3]),
+          userId: String(params[1]),
+          entityType: String(params[2]),
+          entityId: String(params[3]),
+          createdAt: String(params[4]),
         };
 
         const existingIndex = state.favorites.findIndex((favorite) => favorite.id === row.id);
@@ -237,6 +275,17 @@ export function createInMemorySqliteClient(initialState?: Partial<DatabaseState>
         const entityId = String(params[1]);
         const before = state.favorites.length;
         state.favorites = state.favorites.filter((favorite) => !isSameFavorite(favorite, entityType, entityId));
+        return { rowsAffected: before - state.favorites.length, lastInsertRowId: 0 };
+      }
+
+      if (normalizedSql.includes('DELETE FROM favorites WHERE user_id = ? AND entity_type = ? AND entity_id = ?')) {
+        const userId = String(params[0]);
+        const entityType = String(params[1]);
+        const entityId = String(params[2]);
+        const before = state.favorites.length;
+        state.favorites = state.favorites.filter(
+          (favorite) => !isSameUserFavorite(favorite, userId, entityType, entityId),
+        );
         return { rowsAffected: before - state.favorites.length, lastInsertRowId: 0 };
       }
 
@@ -261,8 +310,24 @@ export function createInMemorySqliteClient(initialState?: Partial<DatabaseState>
     async getFirstAsync<T>(sql: string, ...params: Array<string | number | null>): Promise<T | null> {
       const normalizedSql = normalizeSql(sql);
 
+      if (normalizedSql.includes('FROM garments WHERE id = ? AND vendor_id = ?')) {
+        return (
+          state.garments.find(
+            (garment) => garment.id === String(params[0]) && garment.vendorId === String(params[1]),
+          ) ?? null
+        ) as T | null;
+      }
+
       if (normalizedSql.includes('FROM garments WHERE id = ?')) {
         return (state.garments.find((garment) => garment.id === String(params[0])) ?? null) as T | null;
+      }
+
+      if (normalizedSql.includes('FROM looks WHERE id = ? AND user_id = ?')) {
+        return (
+          state.looks.find(
+            (look) => look.id === String(params[0]) && look.userId === String(params[1]),
+          ) ?? null
+        ) as T | null;
       }
 
       if (normalizedSql.includes('FROM looks WHERE id = ?')) {
@@ -275,6 +340,14 @@ export function createInMemorySqliteClient(initialState?: Partial<DatabaseState>
 
       if (normalizedSql.includes('FROM favorites WHERE id = ?')) {
         return (state.favorites.find((favorite) => favorite.id === String(params[0])) ?? null) as T | null;
+      }
+
+      if (normalizedSql.includes('FROM favorites WHERE user_id = ? AND entity_type = ? AND entity_id = ?')) {
+        return (
+          state.favorites.find((favorite) =>
+            isSameUserFavorite(favorite, String(params[0]), String(params[1]), String(params[2])),
+          ) ?? null
+        ) as T | null;
       }
 
       if (normalizedSql.includes('FROM favorites WHERE entity_type = ? AND entity_id = ?')) {
@@ -309,6 +382,34 @@ export function createInMemorySqliteClient(initialState?: Partial<DatabaseState>
     async getAllAsync<T>(sql: string, ...params: Array<string | number | null>): Promise<T[]> {
       const normalizedSql = normalizeSql(sql);
 
+      if (normalizedSql.includes('FROM garments WHERE published = 1 AND')) {
+        const rawTerm = String(params[0] ?? '').toLowerCase();
+        const normalizedTerm = rawTerm.replace(/%/g, '');
+        const matches = state.garments.filter(
+          (garment) =>
+            garment.published === 1 &&
+            (garment.name.toLowerCase().includes(normalizedTerm) ||
+              garment.id.toLowerCase().includes(normalizedTerm) ||
+              garment.category.toLowerCase().includes(normalizedTerm) ||
+              garment.vendorName.toLowerCase().includes(normalizedTerm)),
+        );
+        return orderGarments(clone(matches)) as T[];
+      }
+
+      if (normalizedSql.includes('FROM garments WHERE vendor_id = ? AND')) {
+        const vendorId = String(params[0]);
+        const rawTerm = String(params[1] ?? '').toLowerCase();
+        const normalizedTerm = rawTerm.replace(/%/g, '');
+        const matches = state.garments.filter(
+          (garment) =>
+            garment.vendorId === vendorId &&
+            (garment.name.toLowerCase().includes(normalizedTerm) ||
+              garment.id.toLowerCase().includes(normalizedTerm) ||
+              garment.category.toLowerCase().includes(normalizedTerm)),
+        );
+        return orderGarments(clone(matches)) as T[];
+      }
+
       if (normalizedSql.includes('FROM garments WHERE LOWER(name) LIKE ? OR LOWER(id) LIKE ?')) {
         const rawTerm = String(params[0] ?? '').toLowerCase();
         const normalizedTerm = rawTerm.replace(/%/g, '');
@@ -320,8 +421,26 @@ export function createInMemorySqliteClient(initialState?: Partial<DatabaseState>
         return orderGarments(clone(matches)) as T[];
       }
 
+      if (normalizedSql.includes('FROM garments WHERE published = 1')) {
+        return orderGarments(
+          clone(state.garments.filter((garment) => garment.published === 1)),
+        ) as T[];
+      }
+
+      if (normalizedSql.includes('FROM garments WHERE vendor_id = ?')) {
+        return orderGarments(
+          clone(state.garments.filter((garment) => garment.vendorId === String(params[0]))),
+        ) as T[];
+      }
+
       if (normalizedSql.includes('FROM garments')) {
         return orderGarments(clone(state.garments)) as T[];
+      }
+
+      if (normalizedSql.includes('FROM looks WHERE user_id = ?')) {
+        return orderLooks(
+          clone(state.looks.filter((look) => look.userId === String(params[0]))),
+        ) as T[];
       }
 
       if (normalizedSql.includes('FROM looks')) {
@@ -334,6 +453,12 @@ export function createInMemorySqliteClient(initialState?: Partial<DatabaseState>
 
       if (normalizedSql.includes('FROM look_items')) {
         return clone(state.lookItems) as T[];
+      }
+
+      if (normalizedSql.includes('FROM favorites WHERE user_id = ?')) {
+        return orderFavorites(
+          clone(state.favorites.filter((favorite) => favorite.userId === String(params[0]))),
+        ) as T[];
       }
 
       if (normalizedSql.includes('FROM favorites')) {

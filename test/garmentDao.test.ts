@@ -17,6 +17,9 @@ describe('GarmentDao', () => {
       size: 'M',
       color: 'Negro',
       stock: 4,
+      vendorId: 'vendor-1',
+      vendorName: 'Vendedor Uno',
+      published: 1,
       createdAt: '2026-04-09T10:00:00.000Z',
       updatedAt: '2026-04-09T10:00:00.000Z',
     });
@@ -30,6 +33,9 @@ describe('GarmentDao', () => {
       size: 'L',
       color: 'Beige',
       stock: 6,
+      vendorId: 'vendor-2',
+      vendorName: 'Vendedor Dos',
+      published: 0,
       createdAt: '2026-04-09T10:05:00.000Z',
       updatedAt: '2026-04-09T10:05:00.000Z',
     });
@@ -40,6 +46,10 @@ describe('GarmentDao', () => {
     expect((await dao.search('sku-'))[0].name).toBe('Pantalon arena');
 
     expect((await dao.getById('g-100'))?.name).toBe('Blazer noir');
+    expect(await dao.getByIdForVendor('g-100', 'vendor-2')).toBeNull();
+    expect(await dao.listByVendorId('vendor-1')).toHaveLength(1);
+    expect(await dao.listPublished()).toHaveLength(1);
+    expect(await dao.searchPublished('vendedor uno')).toHaveLength(1);
 
     await dao.update({
       id: 'g-100',
@@ -51,6 +61,9 @@ describe('GarmentDao', () => {
       size: 'M',
       color: 'Negro',
       stock: 2,
+      vendorId: 'vendor-1',
+      vendorName: 'Vendedor Uno',
+      published: 1,
       createdAt: '2026-04-09T10:00:00.000Z',
       updatedAt: '2026-04-09T11:00:00.000Z',
     });
@@ -59,7 +72,10 @@ describe('GarmentDao', () => {
     expect(await dao.listCategories()).toEqual(['Todas', 'Blazers', 'Pantalones']);
     expect((await dao.list()).length).toBe(2);
 
-    await dao.delete('g-100');
+    await dao.deleteForVendor('g-100', 'vendor-2');
+    expect(await dao.getById('g-100')).not.toBeNull();
+
+    await dao.deleteForVendor('g-100', 'vendor-1');
     await dao.delete('sku-200');
     expect(await dao.getById('g-100')).toBeNull();
   });

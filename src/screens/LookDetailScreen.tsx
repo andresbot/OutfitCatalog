@@ -12,12 +12,13 @@ import { CachedImage } from '../components/CachedImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
+import { useAuth } from '../auth/AuthContext';
 import { GarmentDao } from '../core/database/daos/GarmentDao';
 import { LookDao } from '../core/database/daos/LookDao';
 import { LookItemDao } from '../core/database/daos/LookItemDao';
 import { getDatabase } from '../core/database/database';
 import { GarmentRow, LookItemRow, LookRow } from '../core/database/types';
-import { colors, radius, spacing } from '../theme';
+import { colors, radius, shadows, spacing } from '../theme';
 import { RootStackParamList } from '../types';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LookDetail'>;
@@ -30,6 +31,7 @@ type GarmentItem = {
 
 export function LookDetailScreen({ navigation, route }: Props) {
   const { lookId } = route.params;
+  const auth = useAuth();
   const lookDao = useMemo(() => new LookDao(getDatabase), []);
   const lookItemDao = useMemo(() => new LookItemDao(getDatabase), []);
   const garmentDao = useMemo(() => new GarmentDao(getDatabase), []);
@@ -44,7 +46,14 @@ export function LookDetailScreen({ navigation, route }: Props) {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const lookRow = await lookDao.getById(lookId);
+    const userId = auth.user?.id;
+    const lookRow =
+      auth.user?.role === 'admin'
+        ? await lookDao.getById(lookId)
+        : userId
+          ? await lookDao.getByIdForUser(lookId, userId)
+          : null;
+
     if (!lookRow) {
       navigation.goBack();
       return;
@@ -64,7 +73,7 @@ export function LookDetailScreen({ navigation, route }: Props) {
     );
     setGarmentItems(resolved.filter((g): g is GarmentItem => g !== null));
     setLoading(false);
-  }, [lookDao, lookItemDao, garmentDao, lookId, navigation]);
+  }, [auth.user?.id, auth.user?.role, lookDao, lookItemDao, garmentDao, lookId, navigation]);
 
   useFocusEffect(
     useCallback(() => {
@@ -85,6 +94,13 @@ export function LookDetailScreen({ navigation, route }: Props) {
 
   const handleSave = useCallback(async () => {
     if (!look) return;
+    const userId = auth.user?.id;
+    const canEdit = auth.user?.role === 'admin' || look.userId === userId;
+    if (!canEdit) {
+      setError('No puedes editar un look de otro usuario.');
+      return;
+    }
+
     if (garmentItems.length === 0) {
       setError('El look debe tener al menos una prenda.');
       return;
@@ -114,7 +130,18 @@ export function LookDetailScreen({ navigation, route }: Props) {
       setError(e instanceof Error ? e.message : 'Error al guardar.');
       setSaving(false);
     }
-  }, [look, name, description, garmentItems, lookDao, lookItemDao, lookId, navigation]);
+  }, [
+    auth.user?.id,
+    auth.user?.role,
+    look,
+    name,
+    description,
+    garmentItems,
+    lookDao,
+    lookItemDao,
+    lookId,
+    navigation,
+  ]);
 
   if (loading) {
     return (
@@ -229,26 +256,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerSpacer: {
-    width: 40,
+    width: 50,
   },
   brand: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
     color: colors.textPrimary,
-    letterSpacing: 1,
+    letterSpacing: 5,
   },
   backLink: {
-    color: colors.secondary,
-    fontWeight: '600',
+    color: colors.primary,
+    fontWeight: '700',
+    fontSize: 13,
   },
   listContent: {
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.xl,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: 28,
+    fontWeight: '800',
     color: colors.textPrimary,
+    letterSpacing: -0.5,
     marginTop: spacing.sm,
     marginBottom: spacing.md,
   },
@@ -256,17 +285,17 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   label: {
-    color: colors.textPrimary,
-    fontSize: 12,
+    color: colors.primary,
+    fontSize: 10,
     fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 1.5,
     marginBottom: spacing.xs,
   },
   input: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.sm,
+    borderRadius: radius.md,
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
@@ -274,55 +303,60 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   inputMultiline: {
-    height: 80,
+    height: 90,
     textAlignVertical: 'top',
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 10,
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 2,
     marginBottom: spacing.sm,
   },
   garmentRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     marginBottom: spacing.sm,
     overflow: 'hidden',
+    ...shadows.card,
   },
   garmentImage: {
-    width: 80,
-    height: 80,
+    width: 88,
+    height: 88,
   },
   garmentInfo: {
     flex: 1,
     paddingHorizontal: spacing.md,
-    gap: 2,
+    gap: 3,
   },
   garmentCategory: {
-    color: colors.textMuted,
-    fontSize: 11,
+    color: colors.primary,
+    fontSize: 9,
+    fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 1.5,
   },
   garmentName: {
     color: colors.textPrimary,
     fontWeight: '700',
     fontSize: 14,
+    letterSpacing: -0.2,
   },
   garmentSize: {
     color: colors.textSecondary,
     fontSize: 12,
   },
   removeButton: {
-    marginRight: spacing.sm,
+    marginRight: spacing.md,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderRadius: radius.sm,
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderColor: colors.error,
   },
   removeButtonText: {
@@ -338,20 +372,25 @@ const styles = StyleSheet.create({
     color: colors.error,
     fontWeight: '600',
     textAlign: 'center',
+    fontSize: 13,
   },
   saveButton: {
-    height: 50,
+    height: 52,
     borderRadius: radius.round,
-    backgroundColor: colors.secondary,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    ...shadows.gold,
   },
   saveButtonDisabled: {
     backgroundColor: colors.border,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   saveButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 16,
+    color: '#0C0C0E',
+    fontWeight: '800',
+    fontSize: 15,
+    letterSpacing: 0.5,
   },
 });

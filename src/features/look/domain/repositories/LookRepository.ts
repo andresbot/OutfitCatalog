@@ -2,6 +2,7 @@ import { Look } from '../entities/Look';
 import { LookItem } from '../entities/LookItem';
 
 export interface CreateLookInput {
+  userId: string;
   name: string;
   description: string;
   garmentIds: string[];

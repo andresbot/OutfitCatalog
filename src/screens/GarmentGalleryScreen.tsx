@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Modal,
   Pressable,
@@ -14,6 +15,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../auth/AuthContext';
+import { HeartButton } from '../components/HeartButton';
 import { FavoriteDao } from '../core/database/daos/FavoriteDao';
 import { getDatabase } from '../core/database/database';
 import { formatCOP } from '../features/garment/presentation/utils/formatCOP';
@@ -40,6 +42,7 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
     selectedCategory,
     searchQuery,
     filteredGarments,
+    loading,
     setCategory,
     setSearchQuery,
     syncNow,
@@ -55,33 +58,45 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
   }, [justReconnected]);
 
   const loadFavorites = useCallback(async () => {
-    const favorites = await favoriteDao.list();
+    const userId = auth.user?.id;
+    if (!userId) {
+      setFavoriteIds([]);
+      return;
+    }
+
+    const favorites = await favoriteDao.listByUserId(userId);
     setFavoriteIds(
       favorites
         .filter((favorite) => favorite.entityType === 'garment')
         .map((favorite) => favorite.entityId),
     );
-  }, [favoriteDao]);
+  }, [auth.user?.id, favoriteDao]);
 
   const toggleFavorite = useCallback(
     async (garmentId: string) => {
+      const userId = auth.user?.id;
+      if (!userId) {
+        return;
+      }
+
       const isFavorite = favoriteIds.includes(garmentId);
 
       if (isFavorite) {
-        await favoriteDao.deleteByEntity('garment', garmentId);
+        await favoriteDao.deleteByUserEntity(userId, 'garment', garmentId);
         setFavoriteIds((current) => current.filter((id) => id !== garmentId));
         return;
       }
 
       await favoriteDao.upsert({
-        id: `fav-garment-${garmentId}`,
+        id: `fav-${userId}-garment-${garmentId}`,
+        userId,
         entityType: 'garment',
         entityId: garmentId,
         createdAt: new Date().toISOString(),
       });
       setFavoriteIds((current) => [...current, garmentId]);
     },
-    [favoriteDao, favoriteIds],
+    [auth.user?.id, favoriteDao, favoriteIds],
   );
 
   const toggleSelection = useCallback((garmentId: string) => {
@@ -118,7 +133,7 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
           </Pressable>
         )}
         <Text style={styles.brand}>
-          {selectionMode ? 'Seleccionar prendas' : 'ATELIER'}
+          {selectionMode ? 'Seleccionar productos' : 'ATELIER'}
         </Text>
         {selectionMode ? (
           <Text style={styles.selectionCount}>
@@ -182,16 +197,16 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
       </Modal>
 
       <View style={styles.searchWrap}>
-        <Text style={styles.searchLabel}>Buscar prendas</Text>
+        <Text style={styles.searchLabel}>Buscar productos</Text>
         <TextInput
           style={styles.searchInput}
-          placeholder="Buscar por nombre o codigo"
+          placeholder="Buscar por nombre, codigo o vendedor"
           placeholderTextColor={colors.textMuted}
           value={searchQuery}
           onChangeText={setSearchQuery}
           autoCapitalize="none"
           autoCorrect={false}
-          accessibilityLabel="Buscar prendas por nombre o codigo"
+          accessibilityLabel="Buscar productos por nombre, codigo o vendedor"
         />
       </View>
 
@@ -228,9 +243,18 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
         ]}
         columnWrapperStyle={styles.column}
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>No se encontraron prendas para esta busqueda.</Text>
-          </View>
+          loading ? (
+            <View style={styles.emptyState}>
+              <ActivityIndicator color={colors.secondary} />
+              <Text style={styles.emptyStateText}>Cargando productos publicados...</Text>
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyStateText}>
+                No hay productos publicados que coincidan.
+              </Text>
+            </View>
+          )
         }
         renderItem={({ item }) => {
           const isSelected = selectedIds.includes(item.id);
@@ -245,22 +269,22 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
             >
               {selectionMode ? (
                 <View style={[styles.checkboxBadge, isSelected && styles.checkboxBadgeActive]}>
-                  <Text style={styles.checkboxIcon}>{isSelected ? '✓' : ''}</Text>
+                  <Text style={styles.checkboxIcon}>{isSelected ? 'OK' : ''}</Text>
                 </View>
               ) : (
-                <Pressable
-                  style={styles.favoriteButton}
-                  onPress={() => toggleFavorite(item.id)}
-                >
-                  <Text style={styles.favoriteIcon}>
-                    {favoriteIds.includes(item.id) ? '♥' : '♡'}
-                  </Text>
-                </Pressable>
+                <View style={styles.favoriteButton}>
+                  <HeartButton
+                    isFavorite={favoriteIds.includes(item.id)}
+                    onToggle={() => toggleFavorite(item.id)}
+                    size={18}
+                  />
+                </View>
               )}
               <CachedImage uri={item.imageUrl} style={styles.cardImage} />
               <View style={styles.cardBody}>
                 <Text style={styles.eyebrow}>{item.category}</Text>
                 <Text style={styles.cardTitle}>{item.name}</Text>
+                <Text style={styles.vendorName}>Por {item.vendorName}</Text>
                 <Text style={styles.price}>{formatCOP(item.price)}</Text>
               </View>
             </Pressable>
@@ -272,8 +296,8 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
         <View style={styles.selectionBar}>
           <Text style={styles.selectionBarText}>
             {selectedIds.length === 0
-              ? 'Selecciona prendas para el look'
-              : `${selectedIds.length} prenda${selectedIds.length !== 1 ? 's' : ''} seleccionada${selectedIds.length !== 1 ? 's' : ''}`}
+              ? 'Selecciona productos para tu outfit'
+              : `${selectedIds.length} producto${selectedIds.length !== 1 ? 's' : ''} seleccionado${selectedIds.length !== 1 ? 's' : ''}`}
           </Text>
           <Pressable
             style={[styles.continueButton, !selectedIds.length && styles.continueButtonDisabled]}
@@ -302,107 +326,110 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   menuButton: {
-    width: 34,
-    height: 34,
+    width: 36,
+    height: 36,
     borderRadius: radius.round,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderWidth: 0.5,
+    borderColor: colors.borderLight,
     backgroundColor: colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 3,
+    gap: 4,
   },
   menuLine: {
     width: 14,
-    height: 1.8,
+    height: 1.5,
     backgroundColor: colors.textPrimary,
     borderRadius: 2,
   },
   brand: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '800',
     color: colors.textPrimary,
-    letterSpacing: 1,
+    letterSpacing: 5,
   },
   backLink: {
-    color: colors.secondary,
-    fontWeight: '600',
+    color: colors.primary,
+    fontWeight: '700',
+    fontSize: 13,
   },
   menuOverlay: {
     flex: 1,
-    backgroundColor: '#00000033',
+    backgroundColor: 'rgba(0,0,0,0.6)',
   },
   menuPanel: {
     width: '72%',
     height: '100%',
     backgroundColor: colors.surface,
-    paddingTop: spacing.xl,
-    paddingHorizontal: spacing.md,
-    borderRightWidth: 1,
+    paddingTop: spacing.xxl,
+    paddingHorizontal: spacing.lg,
+    borderRightWidth: 0.5,
     borderRightColor: colors.border,
   },
   menuTitle: {
-    fontSize: 22,
+    fontSize: 10,
     fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: spacing.md,
+    letterSpacing: 3,
+    textTransform: 'uppercase',
+    color: colors.primary,
+    marginBottom: spacing.lg,
   },
   menuItem: {
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 0.5,
     borderBottomColor: colors.border,
   },
   menuItemText: {
-    fontSize: 15,
+    fontSize: 17,
     color: colors.textPrimary,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   menuLogout: {
     color: colors.error,
-    fontWeight: '700',
   },
   filtersScroll: {
-    maxHeight: 56,
+    maxHeight: 52,
   },
   searchWrap: {
     marginHorizontal: spacing.md,
     marginBottom: spacing.xs,
     borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: radius.sm,
+    borderColor: colors.border,
+    borderRadius: radius.md,
     backgroundColor: colors.surface,
-    padding: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingTop: 9,
+    paddingBottom: 9,
+    minHeight: 68,
   },
   searchLabel: {
-    color: colors.textPrimary,
-    fontSize: 12,
+    color: colors.primary,
+    fontSize: 10,
     fontWeight: '700',
-    marginBottom: 6,
+    marginBottom: 4,
     textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 1.5,
   },
   searchInput: {
-    height: 44,
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: radius.round,
-    backgroundColor: colors.background,
-    paddingHorizontal: spacing.md,
+    height: 36,
     color: colors.textPrimary,
+    fontSize: 16,
+    lineHeight: 22,
+    paddingVertical: 0,
   },
   filtersRow: {
     paddingHorizontal: spacing.md,
     paddingVertical: 4,
     alignItems: 'center',
     gap: spacing.xs,
-    minHeight: 48,
+    minHeight: 44,
   },
   filterChip: {
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderColor: colors.border,
     borderRadius: radius.round,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingVertical: 6,
     backgroundColor: colors.surface,
   },
   filterChipActive: {
@@ -411,11 +438,13 @@ const styles = StyleSheet.create({
   },
   filterText: {
     color: colors.textSecondary,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
+    letterSpacing: 0.3,
   },
   filterTextActive: {
-    color: '#fff',
+    color: '#0C0C0E',
+    fontWeight: '800',
   },
   list: {
     flex: 1,
@@ -430,21 +459,26 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
-    borderWidth: 1,
+    borderWidth: 0.5,
     borderColor: colors.border,
-    borderRadius: radius.md,
+    borderRadius: radius.lg,
     overflow: 'hidden',
     backgroundColor: colors.surface,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   favoriteButton: {
     position: 'absolute',
     zIndex: 1,
     top: spacing.sm,
     right: spacing.sm,
-    width: 30,
-    height: 30,
+    width: 32,
+    height: 32,
     borderRadius: radius.round,
-    backgroundColor: '#00000088',
+    backgroundColor: 'rgba(0,0,0,0.55)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -455,43 +489,51 @@ const styles = StyleSheet.create({
   },
   cardImage: {
     width: '100%',
-    height: 180,
+    height: 200,
   },
   cardBody: {
     padding: spacing.sm,
     gap: 2,
   },
   eyebrow: {
-    color: colors.textMuted,
-    fontSize: 11,
+    color: colors.primary,
+    fontSize: 9,
+    fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 1,
+    letterSpacing: 1.5,
   },
   cardTitle: {
     color: colors.textPrimary,
     fontWeight: '700',
     fontSize: 14,
   },
+  vendorName: {
+    color: colors.textSecondary,
+    fontSize: 11,
+  },
   price: {
-    color: colors.secondary,
-    fontWeight: '700',
+    color: colors.primary,
+    fontWeight: '800',
+    fontSize: 13,
     marginTop: 2,
   },
   emptyState: {
-    marginTop: spacing.lg,
+    marginTop: spacing.xl,
     alignItems: 'center',
+    gap: spacing.sm,
   },
   emptyStateText: {
     color: colors.textSecondary,
+    fontSize: 14,
   },
   selectionCount: {
-    color: colors.secondary,
+    color: colors.primary,
     fontWeight: '700',
     fontSize: 13,
   },
   cardSelected: {
-    borderColor: colors.secondary,
-    borderWidth: 2,
+    borderColor: colors.primary,
+    borderWidth: 1.5,
   },
   checkboxBadge: {
     position: 'absolute',
@@ -501,21 +543,21 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: radius.round,
-    borderWidth: 2,
-    borderColor: '#fff',
-    backgroundColor: '#00000066',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.8)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkboxBadgeActive: {
-    backgroundColor: colors.secondary,
-    borderColor: colors.secondary,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   checkboxIcon: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 16,
+    color: '#0C0C0E',
+    fontSize: 9,
+    fontWeight: '800',
+    lineHeight: 12,
   },
   selectionBar: {
     position: 'absolute',
@@ -524,7 +566,7 @@ const styles = StyleSheet.create({
     right: 0,
     height: SELECTION_BAR_HEIGHT,
     backgroundColor: colors.surface,
-    borderTopWidth: 1,
+    borderTopWidth: 0.5,
     borderTopColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
@@ -548,8 +590,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
   },
   continueButtonText: {
-    color: '#fff',
-    fontWeight: '700',
+    color: '#0C0C0E',
+    fontWeight: '800',
     fontSize: 14,
   },
 });

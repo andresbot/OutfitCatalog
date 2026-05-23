@@ -17,6 +17,7 @@ export class LookRepositoryImpl implements LookRepository {
 
     const lookRow = {
       id,
+      userId: input.userId,
       name: input.name,
       description: input.description,
       coverImageUrl: null,
@@ -43,6 +44,7 @@ export class LookRepositoryImpl implements LookRepository {
     const rows = await this.lookDao.list();
     return rows.map((row) => ({
       id: row.id,
+      userId: row.userId,
       name: row.name,
       description: row.description,
       coverImageUrl: row.coverImageUrl,
@@ -52,9 +54,10 @@ export class LookRepositoryImpl implements LookRepository {
   }
 
   async listByUserId(userId: string): Promise<Look[]> {
-    const rows = await this.lookDao.list();
+    const rows = await this.lookDao.listByUserId(userId);
     return rows.map((row) => ({
       id: row.id,
+      userId: row.userId,
       name: row.name,
       description: row.description,
       coverImageUrl: row.coverImageUrl,
@@ -68,6 +71,7 @@ export class LookRepositoryImpl implements LookRepository {
     if (!row) return null;
     return {
       id: row.id,
+      userId: row.userId,
       name: row.name,
       description: row.description,
       coverImageUrl: row.coverImageUrl,

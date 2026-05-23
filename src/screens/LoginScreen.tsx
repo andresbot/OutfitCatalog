@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -14,7 +16,7 @@ import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { useAuth } from '../auth/AuthContext';
 import { RootStackParamList } from '../types';
-import { colors, radius, spacing } from '../theme';
+import { colors, radius, shadows, spacing } from '../theme';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -31,7 +33,15 @@ export function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [emailLoading, setEmailLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passFocused, setPassFocused] = useState(false);
+
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(40)).current;
+  const brandAnim = useRef(new Animated.Value(0)).current;
+  const btnScale = useRef(new Animated.Value(1)).current;
 
   const [, response, promptAsync] = Google.useAuthRequest({
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
@@ -39,99 +49,173 @@ export function LoginScreen({ navigation }: Props) {
   });
 
   useEffect(() => {
+    Animated.sequence([
+      Animated.timing(brandAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.spring(slideAnim, { toValue: 0, tension: 60, friction: 10, useNativeDriver: true }),
+      ]),
+    ]).start();
+  }, [brandAnim, fadeAnim, slideAnim]);
+
+  useEffect(() => {
     if (response?.type !== 'success') return;
     const { idToken = null, accessToken = null } = response.authentication ?? {};
-    setGoogleLoading(true);
-    auth.loginWithGoogle(idToken, accessToken).then((loggedUser) => {
-      setGoogleLoading(false);
-      if (!loggedUser) {
-        setError(auth.lastError ?? 'No se pudo iniciar sesion con Google.');
-        return;
+    void (async () => {
+      setGoogleLoading(true);
+      setError('');
+      try {
+        const loggedUser = await auth.loginWithGoogle(idToken, accessToken);
+        if (!loggedUser) {
+          setError(auth.lastError ?? 'No se pudo iniciar sesion con Google.');
+          return;
+        }
+        navigateByRole(loggedUser.role, navigation);
+      } finally {
+        setGoogleLoading(false);
       }
-      navigateByRole(loggedUser.role, navigation);
-    });
+    })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [response]);
 
   const onGooglePress = async () => {
+    if (emailLoading || googleLoading) {
+      return;
+    }
+
     if (Platform.OS === 'web') {
       setGoogleLoading(true);
-      const loggedUser = await auth.loginWithGoogleWeb();
-      setGoogleLoading(false);
-      if (!loggedUser) {
-        setError(auth.lastError ?? 'No se pudo iniciar sesion con Google.');
-        return;
+      setError('');
+      try {
+        const loggedUser = await auth.loginWithGoogleWeb();
+        if (!loggedUser) {
+          setError(auth.lastError ?? 'No se pudo iniciar sesion con Google.');
+          return;
+        }
+        navigateByRole(loggedUser.role, navigation);
+      } finally {
+        setGoogleLoading(false);
       }
-      navigateByRole(loggedUser.role, navigation);
     } else {
       void promptAsync();
     }
   };
 
   const onSubmit = async () => {
-    const loggedUser = await auth.login(email, password);
-    if (!loggedUser) {
-      setError(auth.lastError ?? 'No se pudo iniciar sesion.');
+    if (emailLoading || googleLoading) {
       return;
     }
-    navigateByRole(loggedUser.role, navigation);
+
+    Animated.sequence([
+      Animated.spring(btnScale, { toValue: 0.96, useNativeDriver: true, speed: 50 }),
+      Animated.spring(btnScale, { toValue: 1, useNativeDriver: true, speed: 30 }),
+    ]).start();
+
+    setEmailLoading(true);
+    setError('');
+    try {
+      const loggedUser = await auth.login(email, password);
+      if (!loggedUser) {
+        setError(auth.lastError ?? 'No se pudo iniciar sesion.');
+        return;
+      }
+      navigateByRole(loggedUser.role, navigation);
+    } finally {
+      setEmailLoading(false);
+    }
   };
+
+  const submitting = emailLoading || googleLoading;
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.card}>
-        <Text style={styles.eyebrow}>Outfit Catalog</Text>
-        <Text style={styles.title}>Iniciar sesion</Text>
+      <View style={styles.orb} />
+      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <Animated.View style={[styles.brandWrap, { opacity: brandAnim }]}>
+          <Text style={styles.brand}>ATELIER</Text>
+          <Text style={styles.brandSub}>Fashion Catalog</Text>
+        </Animated.View>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Correo"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          value={email}
-          onChangeText={setEmail}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Contrasena"
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-        />
+        <Animated.View style={[styles.card, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+          <Text style={styles.title}>Bienvenido</Text>
+          <Text style={styles.subtitle}>Inicia sesion para continuar</Text>
 
-        <Text style={styles.hint}>Accede con tu cuenta para explorar el catalogo.</Text>
+          <View style={styles.fields}>
+            <View style={[styles.inputWrap, emailFocused && styles.inputWrapFocused]}>
+              <Text style={styles.inputLabel}>CORREO</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="tu@correo.com"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                value={email}
+                onChangeText={setEmail}
+                onFocus={() => setEmailFocused(true)}
+                onBlur={() => setEmailFocused(false)}
+              />
+            </View>
 
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+            <View style={[styles.inputWrap, passFocused && styles.inputWrapFocused]}>
+              <Text style={styles.inputLabel}>CONTRASENA</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Contrasena"
+                placeholderTextColor={colors.textMuted}
+                secureTextEntry
+                value={password}
+                onChangeText={setPassword}
+                onFocus={() => setPassFocused(true)}
+                onBlur={() => setPassFocused(false)}
+              />
+            </View>
+          </View>
 
-        <Pressable style={styles.primaryButton} onPress={onSubmit}>
-          <Text style={styles.primaryButtonText}>Entrar</Text>
-        </Pressable>
+          {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <View style={styles.dividerRow}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>o</Text>
-          <View style={styles.dividerLine} />
-        </View>
+          <Animated.View style={{ transform: [{ scale: btnScale }] }}>
+            <Pressable
+              style={[styles.primaryButton, submitting && styles.buttonDisabled]}
+              onPress={onSubmit}
+              disabled={submitting}
+            >
+              {emailLoading ? (
+                <ActivityIndicator size="small" color="#0C0C0E" />
+              ) : (
+                <Text style={styles.primaryButtonText}>Entrar</Text>
+              )}
+            </Pressable>
+          </Animated.View>
 
-        <Pressable
-          style={[styles.googleButton, googleLoading && styles.googleButtonDisabled]}
-          onPress={onGooglePress}
-          disabled={googleLoading}
-        >
-          {googleLoading ? (
-            <ActivityIndicator size="small" color={colors.textSecondary} />
-          ) : (
-            <>
-              <Text style={styles.googleIcon}>G</Text>
-              <Text style={styles.googleButtonText}>Continuar con Google</Text>
-            </>
-          )}
-        </Pressable>
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>o</Text>
+            <View style={styles.dividerLine} />
+          </View>
 
-        <Pressable onPress={() => navigation.navigate('Register')}>
-          <Text style={styles.link}>Crear cuenta</Text>
-        </Pressable>
-      </View>
+          <Pressable
+            style={[styles.googleButton, submitting && styles.buttonDisabled]}
+            onPress={onGooglePress}
+            disabled={submitting}
+          >
+            {googleLoading ? (
+              <ActivityIndicator size="small" color={colors.textPrimary} />
+            ) : (
+              <>
+                <Text style={styles.googleIcon}>G</Text>
+                <Text style={styles.googleButtonText}>Continuar con Google</Text>
+              </>
+            )}
+          </Pressable>
+
+          <Pressable onPress={() => navigation.navigate('Register')} disabled={submitting}>
+            <Text style={styles.link}>
+              No tienes cuenta? <Text style={styles.linkAccent}>Registrate</Text>
+            </Text>
+          </Pressable>
+        </Animated.View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -140,101 +224,126 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  scroll: {
+    flexGrow: 1,
     justifyContent: 'center',
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xl,
+  },
+  orb: {
+    position: 'absolute',
+    top: -120,
+    right: -80,
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: colors.primary,
+    opacity: 0.06,
+  },
+  brandWrap: {
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+  },
+  brand: {
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: 10,
+    color: colors.textPrimary,
+  },
+  brandSub: {
+    fontSize: 11,
+    letterSpacing: 3,
+    color: colors.primary,
+    fontWeight: '600',
+    marginTop: 4,
+    textTransform: 'uppercase',
   },
   card: {
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+    borderWidth: 0.5,
     borderColor: colors.border,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  eyebrow: {
-    color: colors.secondary,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    fontWeight: '700',
-    fontSize: 12,
+    gap: spacing.md,
+    ...shadows.card,
   },
   title: {
-    fontSize: 30,
-    fontWeight: '700',
+    fontSize: 26,
+    fontWeight: '800',
     color: colors.textPrimary,
   },
   subtitle: {
+    fontSize: 14,
     color: colors.textSecondary,
-    marginBottom: spacing.xs,
+    marginTop: -spacing.sm,
   },
-  input: {
+  fields: {
+    gap: spacing.sm,
+  },
+  inputWrap: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.sm,
-    backgroundColor: colors.surface,
-    height: 46,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceHigh,
     paddingHorizontal: spacing.md,
+    paddingTop: 9,
+    paddingBottom: 9,
+    minHeight: 68,
   },
-  hint: {
-    color: colors.textMuted,
-    fontSize: 12,
-    lineHeight: 18,
+  inputWrapFocused: {
+    borderColor: colors.primary,
+  },
+  inputLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    color: colors.primary,
+    marginBottom: 2,
+  },
+  input: {
+    color: colors.textPrimary,
+    fontSize: 16,
+    height: 36,
+    lineHeight: 22,
+    paddingVertical: 0,
   },
   error: {
     color: colors.error,
     fontSize: 12,
+    textAlign: 'center',
   },
   primaryButton: {
-    height: 48,
+    height: 52,
     borderRadius: radius.round,
     backgroundColor: colors.primary,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.gold,
   },
   primaryButtonText: {
-    color: '#fff',
-    fontWeight: '700',
+    color: '#0C0C0E',
+    fontWeight: '800',
+    fontSize: 15,
+    letterSpacing: 1,
   },
-  link: {
-    textAlign: 'center',
-    color: colors.secondary,
-    fontWeight: '600',
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.border,
-  },
-  dividerText: {
-    color: colors.textMuted,
-    fontSize: 12,
-  },
+  buttonDisabled: { opacity: 0.55 },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
+  dividerText: { color: colors.textMuted, fontSize: 12 },
   googleButton: {
-    height: 48,
+    height: 52,
     borderRadius: radius.round,
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+    borderColor: colors.borderLight,
+    backgroundColor: colors.surfaceHigh,
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.sm,
   },
-  googleButtonDisabled: {
-    opacity: 0.6,
-  },
-  googleIcon: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#4285F4',
-  },
-  googleButtonText: {
-    color: colors.textPrimary,
-    fontWeight: '600',
-  },
+  googleIcon: { color: colors.textPrimary, fontWeight: '800', fontSize: 16 },
+  googleButtonText: { color: colors.textPrimary, fontWeight: '600', fontSize: 14 },
+  link: { textAlign: 'center', color: colors.textSecondary, fontSize: 13 },
+  linkAccent: { color: colors.primary, fontWeight: '700' },
 });

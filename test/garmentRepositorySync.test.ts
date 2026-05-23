@@ -83,6 +83,23 @@ class FakeRemoteDataSource implements GarmentRemoteDataSource {
 
     return this.garments;
   }
+
+  async upsertGarment(garment: GarmentModel): Promise<void> {
+    const index = this.garments.findIndex((current) => current.id === garment.id);
+    if (index >= 0) {
+      this.garments[index] = garment;
+      return;
+    }
+
+    this.garments.push(garment);
+  }
+
+  async deleteGarment(id: string): Promise<void> {
+    const index = this.garments.findIndex((garment) => garment.id === id);
+    if (index >= 0) {
+      this.garments.splice(index, 1);
+    }
+  }
 }
 
 const SAMPLE_GARMENT: GarmentModel = {
@@ -95,6 +112,9 @@ const SAMPLE_GARMENT: GarmentModel = {
   size: 'M',
   color: 'Azul',
   stock: 5,
+  vendorId: 'vendor-1',
+  vendorName: 'Vendedor Uno',
+  published: true,
 };
 
 describe('GarmentRepositoryImpl syncGarments', () => {

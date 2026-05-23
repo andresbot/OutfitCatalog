@@ -12,6 +12,9 @@ export interface GarmentModel {
   size: string;
   color: string;
   stock: number;
+  vendorId: string;
+  vendorName: string;
+  published: boolean;
 }
 
 export function toGarmentModel(row: GarmentRow): GarmentModel {
@@ -25,6 +28,9 @@ export function toGarmentModel(row: GarmentRow): GarmentModel {
     size: row.size,
     color: row.color,
     stock: row.stock,
+    vendorId: row.vendorId,
+    vendorName: row.vendorName,
+    published: row.published === 1,
   };
 }
 
@@ -39,6 +45,9 @@ export function toGarmentEntity(model: GarmentModel): Garment {
     size: model.size,
     color: model.color,
     stock: model.stock,
+    vendorId: model.vendorId,
+    vendorName: model.vendorName,
+    published: model.published,
   };
 }
 
@@ -47,6 +56,7 @@ export function toGarmentRow(model: GarmentModel): GarmentRow {
 
   return {
     ...model,
+    published: model.published ? 1 : 0,
     createdAt: now,
     updatedAt: now,
   };

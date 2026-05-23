@@ -1,13 +1,9 @@
-import { INITIAL_GARMENTS } from './seedData';
-import { GarmentRow } from './types';
-
 export const DATABASE_NAME = 'outfit_catalog.db';
-export const DATABASE_VERSION = 1;
+export const DATABASE_VERSION = 3;
 
 export type Migration = {
   version: number;
   statements: string[];
-  seedGarments?: GarmentRow[];
 };
 
 const GARMENT_COLUMNS = `
@@ -58,10 +54,56 @@ export const migrations: Migration[] = [
         UNIQUE(entity_type, entity_id)
       )`,
     ],
-    seedGarments: INITIAL_GARMENTS.map((garment) => ({
-      ...garment,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    })),
+  },
+  {
+    version: 2,
+    statements: [
+      `ALTER TABLE looks ADD COLUMN user_id TEXT NOT NULL DEFAULT 'legacy-user'`,
+      `CREATE INDEX IF NOT EXISTS idx_looks_user_id ON looks(user_id)`,
+      `ALTER TABLE favorites RENAME TO favorites_legacy`,
+      `CREATE TABLE favorites (
+        id TEXT PRIMARY KEY NOT NULL,
+        user_id TEXT NOT NULL,
+        entity_type TEXT NOT NULL,
+        entity_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        UNIQUE(user_id, entity_type, entity_id)
+      )`,
+      `INSERT INTO favorites (
+        id,
+        user_id,
+        entity_type,
+        entity_id,
+        created_at
+      )
+      SELECT
+        id,
+        'legacy-user',
+        entity_type,
+        entity_id,
+        created_at
+      FROM favorites_legacy`,
+      `DROP TABLE favorites_legacy`,
+      `CREATE INDEX IF NOT EXISTS idx_favorites_user_entity
+        ON favorites(user_id, entity_type, entity_id)`,
+    ],
+  },
+  {
+    version: 3,
+    statements: [
+      `ALTER TABLE garments ADD COLUMN vendor_id TEXT NOT NULL DEFAULT 'legacy-vendor'`,
+      `ALTER TABLE garments ADD COLUMN vendor_name TEXT NOT NULL DEFAULT 'Vendedor anterior'`,
+      `ALTER TABLE garments ADD COLUMN published INTEGER NOT NULL DEFAULT 0`,
+      `DELETE FROM garments WHERE id IN (
+        'g-001',
+        'g-002',
+        'g-003',
+        'g-004',
+        'g-005',
+        'g-006'
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_garments_vendor_id ON garments(vendor_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_garments_published ON garments(published)`,
+    ],
   },
 ];

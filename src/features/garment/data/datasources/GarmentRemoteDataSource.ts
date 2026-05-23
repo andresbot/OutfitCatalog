@@ -11,15 +11,21 @@ type FirestoreGarmentDocument = {
   size?: string;
   color?: string;
   stock?: number;
+  vendorId?: string;
+  vendorName?: string;
+  published?: boolean;
 };
 
 let firebaseCache: {
   collection: any;
+  deleteDoc: any;
+  doc: any;
   getDocs: any;
   getFirestore: any;
   getApp: any;
   getApps: any;
   initializeApp: any;
+  setDoc: any;
 } | null = null;
 
 function tryLoadFirebase() {
@@ -33,11 +39,14 @@ function tryLoadFirebase() {
 
     firebaseCache = {
       collection: firestore.collection,
+      deleteDoc: firestore.deleteDoc,
+      doc: firestore.doc,
       getDocs: firestore.getDocs,
       getFirestore: firestore.getFirestore,
       getApp: app.getApp,
       getApps: app.getApps,
       initializeApp: app.initializeApp,
+      setDoc: firestore.setDoc,
     };
 
     return true;
@@ -91,7 +100,9 @@ function toGarmentModel(id: string, value: FirestoreGarmentDocument): GarmentMod
     typeof value.description !== 'string' ||
     typeof value.size !== 'string' ||
     typeof value.color !== 'string' ||
-    Number.isNaN(parsedStock)
+    Number.isNaN(parsedStock) ||
+    typeof value.vendorId !== 'string' ||
+    typeof value.vendorName !== 'string'
   ) {
     return null;
   }
@@ -106,12 +117,33 @@ function toGarmentModel(id: string, value: FirestoreGarmentDocument): GarmentMod
     size: value.size,
     color: value.color,
     stock: parsedStock,
+    vendorId: value.vendorId,
+    vendorName: value.vendorName,
+    published: value.published !== false,
+  };
+}
+
+function toFirestoreGarmentDocument(garment: GarmentModel): FirestoreGarmentDocument {
+  return {
+    name: garment.name,
+    category: garment.category,
+    price: garment.price,
+    imageUrl: garment.imageUrl,
+    description: garment.description,
+    size: garment.size,
+    color: garment.color,
+    stock: garment.stock,
+    vendorId: garment.vendorId,
+    vendorName: garment.vendorName,
+    published: garment.published,
   };
 }
 
 export interface GarmentRemoteDataSource {
   isConfigured(): boolean;
   fetchGarments(): Promise<GarmentModel[]>;
+  upsertGarment(garment: GarmentModel): Promise<void>;
+  deleteGarment(id: string): Promise<void>;
 }
 
 export class GarmentRemoteDataSourceImpl implements GarmentRemoteDataSource {
@@ -165,5 +197,28 @@ export class GarmentRemoteDataSourceImpl implements GarmentRemoteDataSource {
     return snapshot.docs
       .map((doc: any) => toGarmentModel(doc.id, doc.data() as FirestoreGarmentDocument))
       .filter((garment: GarmentModel | null): garment is GarmentModel => garment !== null);
+  }
+
+  async upsertGarment(garment: GarmentModel): Promise<void> {
+    if (!this.isConfigured() || !firebaseCache) {
+      return;
+    }
+
+    await firebaseCache.setDoc(
+      firebaseCache.doc(this.db, GARMENT_COLLECTION_NAME, garment.id),
+      {
+        ...toFirestoreGarmentDocument(garment),
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true },
+    );
+  }
+
+  async deleteGarment(id: string): Promise<void> {
+    if (!this.isConfigured() || !firebaseCache) {
+      return;
+    }
+
+    await firebaseCache.deleteDoc(firebaseCache.doc(this.db, GARMENT_COLLECTION_NAME, id));
   }
 }

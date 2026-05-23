@@ -10,8 +10,8 @@ export function OfflineBanner() {
 
   return (
     <View style={styles.banner}>
-      <Text style={styles.dot}>●</Text>
-      <Text style={styles.text}>Sin conexion — mostrando datos guardados localmente</Text>
+      <Text style={styles.dot}>!</Text>
+      <Text style={styles.text}>Sin conexion - mostrando datos guardados localmente</Text>
     </View>
   );
 }
