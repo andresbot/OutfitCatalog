@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -21,17 +22,28 @@ import { AddEditGarmentScreen } from './src/screens/AddEditGarmentScreen';
 import { UserManagementScreen } from './src/screens/UserManagementScreen';
 import { AdminReportsScreen } from './src/screens/AdminReportsScreen';
 import { LookModerationScreen } from './src/screens/LookModerationScreen';
+import { OnboardingScreen } from './src/screens/OnboardingScreen';
+import { VendorProfileScreen } from './src/screens/VendorProfileScreen';
 import { RootStackParamList } from './src/types';
 import { getIt } from './src/core/di/getIt';
 import { DI_TOKENS, initDependencies } from './src/core/di/injectionContainer';
 import { SyncGarmentsUseCase } from './src/features/garment/domain/usecases/SyncGarmentsUseCase';
 import { NetworkProvider } from './src/context/NetworkContext';
+import { isOnboardingCompleted } from './src/core/services/onboardingStorage';
 
 initDependencies();
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
+  const [initialRoute, setInitialRoute] = useState<'Onboarding' | 'Login' | null>(null);
+
+  useEffect(() => {
+    isOnboardingCompleted().then((done) => {
+      setInitialRoute(done ? 'Login' : 'Onboarding');
+    });
+  }, []);
+
   useEffect(() => {
     getIt.get<SyncGarmentsUseCase>(DI_TOKENS.syncGarmentsUseCase)
       .execute()
@@ -40,18 +52,23 @@ export default function App() {
       });
   }, []);
 
+  if (!initialRoute) {
+    return <View style={{ flex: 1, backgroundColor: '#0C0C0E' }} />;
+  }
+
   return (
     <NetworkProvider>
       <AuthProvider>
         <NavigationContainer>
           <StatusBar style="dark" />
           <Stack.Navigator
-            initialRouteName="Login"
+            initialRouteName={initialRoute}
             screenOptions={{
               headerShown: false,
               animation: 'slide_from_right',
             }}
           >
+            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
             <Stack.Screen name="UserHome" component={UserHomeScreen} />
@@ -68,6 +85,7 @@ export default function App() {
             <Stack.Screen name="UserManagement" component={UserManagementScreen} />
             <Stack.Screen name="AdminReports" component={AdminReportsScreen} />
             <Stack.Screen name="LookModeration" component={LookModerationScreen} />
+            <Stack.Screen name="VendorProfile" component={VendorProfileScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </AuthProvider>

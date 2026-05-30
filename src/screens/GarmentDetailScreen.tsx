@@ -7,6 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { shareGarment } from '../core/services/lookShareService';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -27,6 +28,7 @@ export function GarmentDetailScreen({ route, navigation }: Props) {
   const { garment, loading } = useGarmentDetailViewModel(route.params.id);
   const favoriteDao = useMemo(() => new FavoriteDao(getDatabase), []);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   const loadFavorite = useCallback(async () => {
     const userId = auth.user?.id;
@@ -65,6 +67,23 @@ export function GarmentDetailScreen({ route, navigation }: Props) {
     setIsFavorite(true);
   }, [auth.user?.id, favoriteDao, garment, isFavorite]);
 
+  const handleShare = useCallback(async () => {
+    if (!garment) return;
+    setSharing(true);
+    await shareGarment({
+      name: garment.name,
+      category: garment.category,
+      price: garment.price,
+      size: garment.size,
+      color: garment.color,
+      stock: garment.stock,
+      imageUrl: garment.imageUrl,
+      vendorId: garment.vendorId,
+      vendorName: garment.vendorName,
+    });
+    setSharing(false);
+  }, [garment]);
+
   useFocusEffect(
     useCallback(() => {
       loadFavorite();
@@ -99,9 +118,19 @@ export function GarmentDetailScreen({ route, navigation }: Props) {
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.brand}>ATELIER</Text>
           <Pressable onPress={() => navigation.goBack()}>
             <Text style={styles.backLink}>Volver</Text>
+          </Pressable>
+          <Text style={styles.brand}>ATELIER</Text>
+          <Pressable
+            style={styles.shareBtn}
+            onPress={handleShare}
+            disabled={sharing}
+          >
+            {sharing
+              ? <ActivityIndicator size="small" color={colors.primary} />
+              : <Text style={styles.shareBtnText}>Compartir</Text>
+            }
           </Pressable>
         </View>
 
@@ -120,8 +149,29 @@ export function GarmentDetailScreen({ route, navigation }: Props) {
           <InfoChip label="Talla" value={garment.size} />
           <InfoChip label="Color" value={garment.color} />
           <InfoChip label="Precio" value={formatCOP(garment.price)} />
-          <InfoChip label="Stock" value={`${garment.stock} unidades`} />
+          <InfoChip
+            label="Disponibilidad"
+            value={
+              garment.stock === 0
+                ? 'Agotado'
+                : garment.stock <= 5
+                  ? `Últimas ${garment.stock} unid.`
+                  : `En stock (${garment.stock})`
+            }
+          />
         </View>
+
+        <Pressable
+          style={[styles.whatsappBtn, sharing && styles.whatsappBtnDisabled]}
+          onPress={handleShare}
+          disabled={sharing}
+        >
+          {sharing ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.whatsappBtnText}>Consultar por WhatsApp</Text>
+          )}
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -231,6 +281,33 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 15,
   },
+  // Header share button
+  shareBtn: {
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: radius.round,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    minWidth: 80,
+    alignItems: 'center',
+    backgroundColor: 'rgba(201,168,76,0.08)',
+  },
+  shareBtnText: { color: colors.primary, fontWeight: '700', fontSize: 12 },
+  // WhatsApp CTA button
+  whatsappBtn: {
+    height: 54,
+    borderRadius: radius.round,
+    backgroundColor: '#25D366',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#25D366',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  whatsappBtnDisabled: { opacity: 0.6 },
+  whatsappBtnText: { color: '#fff', fontWeight: '800', fontSize: 15, letterSpacing: 0.3 },
   emptyWrap: {
     flex: 1,
     justifyContent: 'center',

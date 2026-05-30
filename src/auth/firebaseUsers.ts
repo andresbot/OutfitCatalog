@@ -20,6 +20,7 @@ export type ManagedUser = {
   email: string;
   role: UserRole;
   createdAt: string;
+  phone?: string;
 };
 
 let runtimeCache: FirebaseRuntime | null = null;
@@ -99,6 +100,7 @@ export async function listAllUsers(): Promise<ManagedUser[]> {
       email: typeof data.email === 'string' ? data.email : '',
       role: normalizeRole(data.role),
       createdAt: typeof data.createdAt === 'string' ? data.createdAt : '',
+      phone: typeof data.phone === 'string' ? data.phone : undefined,
     });
   });
   return users.sort((a, b) => a.email.localeCompare(b.email));
@@ -123,4 +125,33 @@ export async function deleteUserProfile(uid: string): Promise<boolean> {
 
   await runtime.deleteDoc(runtime.doc(db, 'users', uid));
   return true;
+}
+
+export async function updateUserPhone(uid: string, phone: string): Promise<boolean> {
+  const runtime = tryLoadRuntime();
+  const db = getDb();
+  if (!runtime || !db) return false;
+
+  await runtime.updateDoc(runtime.doc(db, 'users', uid), {
+    phone: phone.trim(),
+    updatedAt: new Date().toISOString(),
+  });
+  return true;
+}
+
+export async function getVendorPhone(vendorId: string): Promise<string | null> {
+  const runtime = tryLoadRuntime();
+  const db = getDb();
+  if (!runtime || !db) return null;
+
+  try {
+    // eslint-disable-next-line global-require
+    const { getDoc } = require('firebase/firestore');
+    const snap = await getDoc(runtime.doc(db, 'users', vendorId));
+    if (!snap.exists()) return null;
+    const data = snap.data() as Record<string, unknown>;
+    return typeof data.phone === 'string' && data.phone.trim() ? data.phone.trim() : null;
+  } catch {
+    return null;
+  }
 }

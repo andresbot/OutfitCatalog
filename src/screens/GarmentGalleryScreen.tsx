@@ -19,7 +19,11 @@ import { HeartButton } from '../components/HeartButton';
 import { FavoriteDao } from '../core/database/daos/FavoriteDao';
 import { getDatabase } from '../core/database/database';
 import { formatCOP } from '../features/garment/presentation/utils/formatCOP';
-import { useGarmentGalleryViewModel } from '../features/garment/presentation/viewmodels/GarmentGalleryViewModel';
+import {
+  PREDEFINED_SIZES,
+  PRICE_RANGES,
+  useGarmentGalleryViewModel,
+} from '../features/garment/presentation/viewmodels/GarmentGalleryViewModel';
 import { useNetwork } from '../context/NetworkContext';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { colors, radius, spacing } from '../theme';
@@ -34,6 +38,7 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
   const auth = useAuth();
   const favoriteDao = useMemo(() => new FavoriteDao(getDatabase), []);
   const [menuVisible, setMenuVisible] = useState(false);
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const { isConnected, justReconnected } = useNetwork();
@@ -43,50 +48,45 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
     searchQuery,
     filteredGarments,
     loading,
+    selectedSizes,
+    selectedPriceRange,
+    activeFilterCount,
     setCategory,
     setSearchQuery,
+    setSelectedPriceRange,
+    toggleSize,
+    resetAdvancedFilters,
     syncNow,
   } = useGarmentGalleryViewModel();
 
-  // SCRUM-77: auto-sync garments on reconnect so favorites reference fresh data
+  // Auto-sync on reconnect
   const syncRef = useRef(syncNow);
   syncRef.current = syncNow;
   useEffect(() => {
-    if (justReconnected) {
-      syncRef.current();
-    }
+    if (justReconnected) syncRef.current();
   }, [justReconnected]);
 
   const loadFavorites = useCallback(async () => {
     const userId = auth.user?.id;
-    if (!userId) {
-      setFavoriteIds([]);
-      return;
-    }
-
+    if (!userId) { setFavoriteIds([]); return; }
     const favorites = await favoriteDao.listByUserId(userId);
     setFavoriteIds(
       favorites
-        .filter((favorite) => favorite.entityType === 'garment')
-        .map((favorite) => favorite.entityId),
+        .filter((f) => f.entityType === 'garment')
+        .map((f) => f.entityId),
     );
   }, [auth.user?.id, favoriteDao]);
 
   const toggleFavorite = useCallback(
     async (garmentId: string) => {
       const userId = auth.user?.id;
-      if (!userId) {
-        return;
-      }
-
+      if (!userId) return;
       const isFavorite = favoriteIds.includes(garmentId);
-
       if (isFavorite) {
         await favoriteDao.deleteByUserEntity(userId, 'garment', garmentId);
-        setFavoriteIds((current) => current.filter((id) => id !== garmentId));
+        setFavoriteIds((cur) => cur.filter((id) => id !== garmentId));
         return;
       }
-
       await favoriteDao.upsert({
         id: `fav-${userId}-garment-${garmentId}`,
         userId,
@@ -94,16 +94,14 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
         entityId: garmentId,
         createdAt: new Date().toISOString(),
       });
-      setFavoriteIds((current) => [...current, garmentId]);
+      setFavoriteIds((cur) => [...cur, garmentId]);
     },
     [auth.user?.id, favoriteDao, favoriteIds],
   );
 
   const toggleSelection = useCallback((garmentId: string) => {
-    setSelectedIds((current) =>
-      current.includes(garmentId)
-        ? current.filter((id) => id !== garmentId)
-        : [...current, garmentId],
+    setSelectedIds((cur) =>
+      cur.includes(garmentId) ? cur.filter((id) => id !== garmentId) : [...cur, garmentId],
     );
   }, []);
 
@@ -111,15 +109,15 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
     navigation.navigate('CreateLookPreview', { garmentIds: selectedIds });
   }, [navigation, selectedIds]);
 
-  useFocusEffect(
-    useCallback(() => {
-      loadFavorites();
-    }, [loadFavorites]),
-  );
+  useFocusEffect(useCallback(() => { loadFavorites(); }, [loadFavorites]));
+
+  void isConnected;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
       <OfflineBanner />
+
+      {/* ── Header ── */}
       <View style={styles.header}>
         {selectionMode ? (
           <Pressable onPress={() => navigation.goBack()}>
@@ -132,13 +130,15 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
             <View style={styles.menuLine} />
           </Pressable>
         )}
-        <Text style={styles.brand}>
+        <Text
+          style={[styles.brand, selectionMode && styles.brandSelection]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+        >
           {selectionMode ? 'Seleccionar productos' : 'ATELIER'}
         </Text>
         {selectionMode ? (
-          <Text style={styles.selectionCount}>
-            {selectedIds.length} selec.
-          </Text>
+          <Text style={styles.selectionCount}>{selectedIds.length} selec.</Text>
         ) : (
           <Pressable onPress={() => navigation.goBack()}>
             <Text style={styles.backLink}>Volver</Text>
@@ -146,6 +146,7 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
         )}
       </View>
 
+      {/* ── Side menu modal ── */}
       <Modal
         animationType="slide"
         transparent
@@ -163,19 +164,13 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
             </Pressable>
             <Pressable
               style={styles.menuItem}
-              onPress={() => {
-                setMenuVisible(false);
-                navigation.navigate('Looks');
-              }}
+              onPress={() => { setMenuVisible(false); navigation.navigate('Looks'); }}
             >
               <Text style={styles.menuItemText}>Colecciones</Text>
             </Pressable>
             <Pressable
               style={styles.menuItem}
-              onPress={() => {
-                setMenuVisible(false);
-                navigation.navigate('Favorites');
-              }}
+              onPress={() => { setMenuVisible(false); navigation.navigate('Favorites'); }}
             >
               <Text style={styles.menuItemText}>Favoritos</Text>
             </Pressable>
@@ -184,10 +179,7 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
               onPress={() => {
                 setMenuVisible(false);
                 auth.logout();
-                navigation.reset({
-                  index: 0,
-                  routes: [{ name: 'Login' }],
-                });
+                navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
               }}
             >
               <Text style={[styles.menuItemText, styles.menuLogout]}>Cerrar sesion</Text>
@@ -196,20 +188,117 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
         </Pressable>
       </Modal>
 
-      <View style={styles.searchWrap}>
-        <Text style={styles.searchLabel}>Buscar productos</Text>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Buscar por nombre, codigo o vendedor"
-          placeholderTextColor={colors.textMuted}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          autoCapitalize="none"
-          autoCorrect={false}
-          accessibilityLabel="Buscar productos por nombre, codigo o vendedor"
-        />
+      {/* ── Advanced filters modal ── */}
+      <Modal
+        animationType="slide"
+        transparent
+        visible={filterModalVisible}
+        onRequestClose={() => setFilterModalVisible(false)}
+      >
+        <Pressable style={styles.filterOverlay} onPress={() => setFilterModalVisible(false)}>
+          <Pressable style={styles.filterPanel} onPress={() => {}}>
+            <View style={styles.filterHandle} />
+
+            <View style={styles.filterPanelHeader}>
+              <Text style={styles.filterPanelTitle}>Filtros avanzados</Text>
+              <Pressable onPress={resetAdvancedFilters}>
+                <Text style={styles.filterResetText}>Resetear todo</Text>
+              </Pressable>
+            </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.filterScrollContent}
+            >
+              {/* Price ranges — single selection */}
+              <Text style={styles.filterSectionLabel}>PRECIO</Text>
+              <View style={styles.chipGrid}>
+                {PRICE_RANGES.map((range) => {
+                  const active = selectedPriceRange === range.label;
+                  return (
+                    <Pressable
+                      key={range.label}
+                      style={[styles.advChip, active && styles.advChipActive]}
+                      onPress={() =>
+                        setSelectedPriceRange(active ? null : range.label)
+                      }
+                    >
+                      <Text style={[styles.advChipText, active && styles.advChipTextActive]}>
+                        {range.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {/* Sizes — multiple selection */}
+              <Text style={styles.filterSectionLabel}>TALLA</Text>
+              <View style={styles.chipGrid}>
+                {PREDEFINED_SIZES.map((size) => {
+                  const active = selectedSizes.includes(size);
+                  return (
+                    <Pressable
+                      key={size}
+                      style={[styles.advChip, active && styles.advChipActive]}
+                      onPress={() => toggleSize(size)}
+                    >
+                      <Text style={[styles.advChipText, active && styles.advChipTextActive]}>
+                        {size}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </ScrollView>
+
+            <Pressable
+              style={styles.filterApplyButton}
+              onPress={() => setFilterModalVisible(false)}
+            >
+              <Text style={styles.filterApplyText}>
+                Ver {filteredGarments.length} resultado
+                {filteredGarments.length !== 1 ? 's' : ''}
+              </Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* ── Search + filter button row ── */}
+      <View style={styles.searchRow}>
+        <View style={styles.searchWrap}>
+          <Text style={styles.searchLabel}>Buscar productos</Text>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Buscar por nombre, codigo o vendedor"
+            placeholderTextColor={colors.textMuted}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+            accessibilityLabel="Buscar productos por nombre, codigo o vendedor"
+          />
+        </View>
+
+        <Pressable
+          style={[styles.filterButton, activeFilterCount > 0 && styles.filterButtonActive]}
+          onPress={() => setFilterModalVisible(true)}
+          accessibilityLabel="Filtros avanzados"
+        >
+          <View style={styles.filterIconLines}>
+            <View style={styles.filterIconLine} />
+            <View style={[styles.filterIconLine, styles.filterIconLineMid]} />
+            <View style={[styles.filterIconLine, styles.filterIconLineShort]} />
+          </View>
+          {activeFilterCount > 0 && (
+            <View style={styles.filterCountBadge}>
+              <Text style={styles.filterCountBadgeText}>{activeFilterCount}</Text>
+            </View>
+          )}
+        </Pressable>
       </View>
 
+      {/* ── Category chips ── */}
       <ScrollView
         horizontal
         style={styles.filtersScroll}
@@ -232,6 +321,7 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
         })}
       </ScrollView>
 
+      {/* ── Garment grid ── */}
       <FlatList
         data={filteredGarments}
         keyExtractor={(item) => item.id}
@@ -313,10 +403,9 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
+  safe: { flex: 1, backgroundColor: colors.background },
+
+  // ── Header ──
   header: {
     marginHorizontal: spacing.md,
     marginTop: spacing.sm,
@@ -348,15 +437,14 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     letterSpacing: 5,
   },
-  backLink: {
-    color: colors.primary,
-    fontWeight: '700',
-    fontSize: 13,
+  brandSelection: {
+    fontSize: 14,
+    letterSpacing: 0.5,
   },
-  menuOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
+  backLink: { color: colors.primary, fontWeight: '700', fontSize: 13 },
+
+  // ── Side menu ──
+  menuOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
   menuPanel: {
     width: '72%',
     height: '100%',
@@ -379,20 +467,19 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5,
     borderBottomColor: colors.border,
   },
-  menuItemText: {
-    fontSize: 17,
-    color: colors.textPrimary,
-    fontWeight: '600',
-  },
-  menuLogout: {
-    color: colors.error,
-  },
-  filtersScroll: {
-    maxHeight: 52,
-  },
-  searchWrap: {
+  menuItemText: { fontSize: 17, color: colors.textPrimary, fontWeight: '600' },
+  menuLogout: { color: colors.error },
+
+  // ── Search row ──
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
     marginHorizontal: spacing.md,
     marginBottom: spacing.xs,
+    gap: spacing.xs,
+  },
+  searchWrap: {
+    flex: 1,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.md,
@@ -417,6 +504,115 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     paddingVertical: 0,
   },
+
+  // ── Filter button ──
+  filterButton: {
+    width: 52,
+    minHeight: 68,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterButtonActive: {
+    borderColor: colors.primary,
+    backgroundColor: 'rgba(201,168,76,0.08)',
+  },
+  filterIconLines: { gap: 4, alignItems: 'center' },
+  filterIconLine: { width: 16, height: 1.5, backgroundColor: colors.textPrimary, borderRadius: 2 },
+  filterIconLineMid: { width: 11 },
+  filterIconLineShort: { width: 6 },
+  filterCountBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    minWidth: 16,
+    height: 16,
+    borderRadius: radius.round,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  filterCountBadgeText: { color: '#0C0C0E', fontSize: 9, fontWeight: '800', lineHeight: 12 },
+
+  // ── Advanced filters modal ──
+  filterOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  filterPanel: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    maxHeight: '80%',
+    paddingBottom: spacing.xl,
+  },
+  filterHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: radius.round,
+    backgroundColor: colors.border,
+    alignSelf: 'center',
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  filterPanelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  filterPanelTitle: {
+    color: colors.textPrimary,
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  filterResetText: { color: colors.primary, fontSize: 13, fontWeight: '700' },
+  filterScrollContent: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
+    gap: spacing.xs,
+  },
+  filterSectionLabel: {
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
+  advChip: {
+    borderWidth: 0.5,
+    borderColor: colors.border,
+    borderRadius: radius.round,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    backgroundColor: colors.background,
+  },
+  advChipActive: { borderColor: colors.primary, backgroundColor: colors.primary },
+  advChipText: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  advChipTextActive: { color: '#0C0C0E', fontWeight: '800' },
+  filterApplyButton: {
+    marginHorizontal: spacing.md,
+    marginTop: spacing.sm,
+    height: 52,
+    borderRadius: radius.round,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterApplyText: { color: '#0C0C0E', fontWeight: '800', fontSize: 15, letterSpacing: 0.3 },
+
+  // ── Category chips ──
+  filtersScroll: { maxHeight: 52 },
   filtersRow: {
     paddingHorizontal: spacing.md,
     paddingVertical: 4,
@@ -432,31 +628,14 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     backgroundColor: colors.surface,
   },
-  filterChipActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primary,
-  },
-  filterText: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-  filterTextActive: {
-    color: '#0C0C0E',
-    fontWeight: '800',
-  },
-  list: {
-    flex: 1,
-  },
-  listContent: {
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.xl,
-    gap: spacing.sm,
-  },
-  column: {
-    gap: spacing.sm,
-  },
+  filterChipActive: { borderColor: colors.primary, backgroundColor: colors.primary },
+  filterText: { color: colors.textSecondary, fontSize: 12, fontWeight: '600', letterSpacing: 0.3 },
+  filterTextActive: { color: '#0C0C0E', fontWeight: '800' },
+
+  // ── Garment grid ──
+  list: { flex: 1 },
+  listContent: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl, gap: spacing.sm },
+  column: { gap: spacing.sm },
   card: {
     flex: 1,
     borderWidth: 0.5,
@@ -482,19 +661,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  favoriteIcon: {
-    color: '#fff',
-    fontSize: 16,
-    lineHeight: 18,
-  },
-  cardImage: {
-    width: '100%',
-    height: 200,
-  },
-  cardBody: {
-    padding: spacing.sm,
-    gap: 2,
-  },
+  cardImage: { width: '100%', height: 200 },
+  cardBody: { padding: spacing.sm, gap: 2 },
   eyebrow: {
     color: colors.primary,
     fontSize: 9,
@@ -502,39 +670,15 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1.5,
   },
-  cardTitle: {
-    color: colors.textPrimary,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  vendorName: {
-    color: colors.textSecondary,
-    fontSize: 11,
-  },
-  price: {
-    color: colors.primary,
-    fontWeight: '800',
-    fontSize: 13,
-    marginTop: 2,
-  },
-  emptyState: {
-    marginTop: spacing.xl,
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  emptyStateText: {
-    color: colors.textSecondary,
-    fontSize: 14,
-  },
-  selectionCount: {
-    color: colors.primary,
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  cardSelected: {
-    borderColor: colors.primary,
-    borderWidth: 1.5,
-  },
+  cardTitle: { color: colors.textPrimary, fontWeight: '700', fontSize: 14 },
+  vendorName: { color: colors.textSecondary, fontSize: 11 },
+  price: { color: colors.primary, fontWeight: '800', fontSize: 13, marginTop: 2 },
+  emptyState: { marginTop: spacing.xl, alignItems: 'center', gap: spacing.sm },
+  emptyStateText: { color: colors.textSecondary, fontSize: 14 },
+
+  // ── Selection mode ──
+  selectionCount: { color: colors.primary, fontWeight: '700', fontSize: 13 },
+  cardSelected: { borderColor: colors.primary, borderWidth: 1.5 },
   checkboxBadge: {
     position: 'absolute',
     zIndex: 1,
@@ -549,16 +693,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkboxBadgeActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  checkboxIcon: {
-    color: '#0C0C0E',
-    fontSize: 9,
-    fontWeight: '800',
-    lineHeight: 12,
-  },
+  checkboxBadgeActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  checkboxIcon: { color: '#0C0C0E', fontSize: 9, fontWeight: '800', lineHeight: 12 },
   selectionBar: {
     position: 'absolute',
     bottom: 0,
@@ -573,11 +709,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     gap: spacing.sm,
   },
-  selectionBarText: {
-    flex: 1,
-    color: colors.textSecondary,
-    fontSize: 13,
-  },
+  selectionBarText: { flex: 1, color: colors.textSecondary, fontSize: 13 },
   continueButton: {
     height: 44,
     borderRadius: radius.round,
@@ -586,12 +718,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  continueButtonDisabled: {
-    backgroundColor: colors.border,
-  },
-  continueButtonText: {
-    color: '#0C0C0E',
-    fontWeight: '800',
-    fontSize: 14,
-  },
+  continueButtonDisabled: { backgroundColor: colors.border },
+  continueButtonText: { color: '#0C0C0E', fontWeight: '800', fontSize: 14 },
 });

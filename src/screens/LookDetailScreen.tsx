@@ -1,8 +1,11 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
+  Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -18,6 +21,13 @@ import { LookDao } from '../core/database/daos/LookDao';
 import { LookItemDao } from '../core/database/daos/LookItemDao';
 import { getDatabase } from '../core/database/database';
 import { GarmentRow, LookItemRow, LookRow } from '../core/database/types';
+import {
+  buildShareGroups,
+  buildWhatsAppMessage,
+  openWhatsApp,
+  VendorShareGroup,
+} from '../core/services/lookShareService';
+import { formatCOP } from '../features/garment/presentation/utils/formatCOP';
 import { colors, radius, shadows, spacing } from '../theme';
 import { RootStackParamList } from '../types';
 
@@ -43,6 +53,12 @@ export function LookDetailScreen({ navigation, route }: Props) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  // Share state
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [shareGroups, setShareGroups] = useState<VendorShareGroup[]>([]);
+  const [loadingShare, setLoadingShare] = useState(false);
+  const [openingWhatsApp, setOpeningWhatsApp] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -75,11 +91,7 @@ export function LookDetailScreen({ navigation, route }: Props) {
     setLoading(false);
   }, [auth.user?.id, auth.user?.role, lookDao, lookItemDao, garmentDao, lookId, navigation]);
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load]),
-  );
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const removeGarment = useCallback((lookItemId: string) => {
     setGarmentItems((prev) => {
@@ -100,7 +112,6 @@ export function LookDetailScreen({ navigation, route }: Props) {
       setError('No puedes editar un look de otro usuario.');
       return;
     }
-
     if (garmentItems.length === 0) {
       setError('El look debe tener al menos una prenda.');
       return;
@@ -108,7 +119,6 @@ export function LookDetailScreen({ navigation, route }: Props) {
 
     setSaving(true);
     setError('');
-
     try {
       await lookDao.update({
         ...look,
@@ -124,24 +134,37 @@ export function LookDetailScreen({ navigation, route }: Props) {
         position: i,
       }));
       await lookItemDao.replaceForLook(lookId, newItems);
-
       navigation.goBack();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al guardar.');
       setSaving(false);
     }
   }, [
-    auth.user?.id,
-    auth.user?.role,
-    look,
-    name,
-    description,
-    garmentItems,
-    lookDao,
-    lookItemDao,
-    lookId,
-    navigation,
+    auth.user?.id, auth.user?.role, look, name, description,
+    garmentItems, lookDao, lookItemDao, lookId, navigation,
   ]);
+
+  const handleOpenShare = useCallback(async () => {
+    if (garmentItems.length === 0) {
+      Alert.alert('Sin prendas', 'Agrega prendas al look antes de compartir.');
+      return;
+    }
+    setLoadingShare(true);
+    setShareModalVisible(true);
+    const groups = await buildShareGroups(garmentItems.map((g) => g.garment));
+    setShareGroups(groups);
+    setLoadingShare(false);
+  }, [garmentItems]);
+
+  const handleContactVendor = useCallback(
+    async (group: VendorShareGroup) => {
+      setOpeningWhatsApp(group.vendorId);
+      const message = buildWhatsAppMessage(name || look?.name || '', group);
+      await openWhatsApp(group.vendorPhone, message);
+      setOpeningWhatsApp(null);
+    },
+    [look?.name, name],
+  );
 
   if (loading) {
     return (
@@ -158,8 +181,87 @@ export function LookDetailScreen({ navigation, route }: Props) {
           <Text style={styles.backLink}>Volver</Text>
         </Pressable>
         <Text style={styles.brand}>ATELIER</Text>
-        <View style={styles.headerSpacer} />
+        <Pressable style={styles.shareBtn} onPress={handleOpenShare}>
+          <Text style={styles.shareBtnText}>Compartir</Text>
+        </Pressable>
       </View>
+
+      {/* ── Share modal ── */}
+      <Modal
+        animationType="slide"
+        transparent
+        visible={shareModalVisible}
+        onRequestClose={() => setShareModalVisible(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShareModalVisible(false)}>
+          <Pressable style={styles.modalPanel} onPress={() => {}}>
+            <View style={styles.modalHandle} />
+
+            <Text style={styles.modalTitle}>Compartir por WhatsApp</Text>
+            <Text style={styles.modalSubtitle}>
+              Contacta directamente al vendedor de cada prenda.
+            </Text>
+
+            {loadingShare ? (
+              <View style={styles.shareLoader}>
+                <ActivityIndicator color={colors.secondary} />
+                <Text style={styles.shareLoaderText}>Obteniendo datos de vendedores...</Text>
+              </View>
+            ) : (
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.groupList}
+              >
+                {shareGroups.map((group) => (
+                  <View key={group.vendorId} style={styles.vendorCard}>
+                    <View style={styles.vendorCardHeader}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.vendorCardName}>{group.vendorName}</Text>
+                        <Text style={styles.vendorCardGarments}>
+                          {group.garments.length} prenda{group.garments.length !== 1 ? 's' : ''} en este look
+                        </Text>
+                      </View>
+                      {!group.vendorPhone && (
+                        <View style={styles.noPhoneBadge}>
+                          <Text style={styles.noPhoneText}>Sin número</Text>
+                        </View>
+                      )}
+                    </View>
+
+                    {/* Garment list preview */}
+                    {group.garments.map((g, i) => (
+                      <View key={i} style={styles.previewRow}>
+                        <Text style={styles.previewName} numberOfLines={1}>{g.name}</Text>
+                        <Text style={styles.previewPrice}>{formatCOP(g.price)}</Text>
+                      </View>
+                    ))}
+
+                    <Pressable
+                      style={[
+                        styles.whatsappBtn,
+                        !group.vendorPhone && styles.whatsappBtnNoPhone,
+                        openingWhatsApp === group.vendorId && styles.whatsappBtnDisabled,
+                      ]}
+                      onPress={() => handleContactVendor(group)}
+                      disabled={openingWhatsApp === group.vendorId}
+                    >
+                      {openingWhatsApp === group.vendorId ? (
+                        <ActivityIndicator size="small" color="#0C0C0E" />
+                      ) : (
+                        <Text style={styles.whatsappBtnText}>
+                          {group.vendorPhone
+                            ? `Contactar a ${group.vendorName}`
+                            : `Enviar mensaje a ${group.vendorName}`}
+                        </Text>
+                      )}
+                    </Pressable>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <FlatList
         data={garmentItems}
@@ -194,9 +296,7 @@ export function LookDetailScreen({ navigation, route }: Props) {
               />
             </View>
 
-            <Text style={styles.sectionTitle}>
-              Prendas ({garmentItems.length})
-            </Text>
+            <Text style={styles.sectionTitle}>Prendas ({garmentItems.length})</Text>
           </View>
         }
         renderItem={({ item }) => (
@@ -240,13 +340,10 @@ export function LookDetailScreen({ navigation, route }: Props) {
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  loader: {
-    flex: 1,
-  },
+  safe: { flex: 1, backgroundColor: colors.background },
+  loader: { flex: 1 },
+
+  // Header
   header: {
     marginHorizontal: spacing.md,
     marginTop: spacing.sm,
@@ -255,24 +352,139 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  headerSpacer: {
-    width: 50,
-  },
-  brand: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    letterSpacing: 5,
-  },
-  backLink: {
-    color: colors.primary,
-    fontWeight: '700',
-    fontSize: 13,
-  },
-  listContent: {
+  brand: { fontSize: 18, fontWeight: '800', color: colors.textPrimary, letterSpacing: 5 },
+  backLink: { color: colors.primary, fontWeight: '700', fontSize: 13 },
+  shareBtn: {
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: radius.round,
     paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(201,168,76,0.08)',
+  },
+  shareBtnText: { color: colors.primary, fontWeight: '700', fontSize: 12 },
+
+  // Share modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  modalPanel: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    maxHeight: '80%',
     paddingBottom: spacing.xl,
   },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: radius.round,
+    backgroundColor: colors.border,
+    alignSelf: 'center',
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  modalTitle: {
+    color: colors.textPrimary,
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+    paddingHorizontal: spacing.md,
+  },
+  modalSubtitle: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    paddingHorizontal: spacing.md,
+    marginTop: 4,
+    marginBottom: spacing.md,
+    lineHeight: 19,
+  },
+  shareLoader: {
+    paddingVertical: spacing.xl,
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  shareLoaderText: { color: colors.textSecondary, fontSize: 13 },
+  groupList: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
+    gap: spacing.md,
+  },
+  vendorCard: {
+    borderWidth: 0.5,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.background,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  vendorCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  vendorCardName: {
+    color: colors.textPrimary,
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  vendorCardGarments: {
+    color: colors.textMuted,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  noPhoneBadge: {
+    borderWidth: 0.5,
+    borderColor: colors.warning,
+    borderRadius: radius.round,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+  },
+  noPhoneText: { color: colors.warning, fontSize: 10, fontWeight: '700' },
+  previewRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 3,
+    borderBottomWidth: 0.5,
+    borderBottomColor: colors.border,
+  },
+  previewName: {
+    flex: 1,
+    color: colors.textSecondary,
+    fontSize: 13,
+  },
+  previewPrice: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '700',
+    marginLeft: spacing.sm,
+  },
+  whatsappBtn: {
+    marginTop: spacing.sm,
+    height: 44,
+    borderRadius: radius.round,
+    backgroundColor: '#25D366',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  whatsappBtnNoPhone: {
+    backgroundColor: colors.surfaceHigh,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  whatsappBtnDisabled: { opacity: 0.6 },
+  whatsappBtnText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 13,
+    letterSpacing: 0.3,
+  },
+
+  // List
+  listContent: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl },
   title: {
     fontSize: 28,
     fontWeight: '800',
@@ -281,9 +493,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     marginBottom: spacing.md,
   },
-  field: {
-    marginBottom: spacing.md,
-  },
+  field: { marginBottom: spacing.md },
   label: {
     color: colors.primary,
     fontSize: 10,
@@ -302,10 +512,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 15,
   },
-  inputMultiline: {
-    height: 90,
-    textAlignVertical: 'top',
-  },
+  inputMultiline: { height: 90, textAlignVertical: 'top' },
   sectionTitle: {
     fontSize: 10,
     fontWeight: '700',
@@ -325,15 +532,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     ...shadows.card,
   },
-  garmentImage: {
-    width: 88,
-    height: 88,
-  },
-  garmentInfo: {
-    flex: 1,
-    paddingHorizontal: spacing.md,
-    gap: 3,
-  },
+  garmentImage: { width: 88, height: 88 },
+  garmentInfo: { flex: 1, paddingHorizontal: spacing.md, gap: 3 },
   garmentCategory: {
     color: colors.primary,
     fontSize: 9,
@@ -341,16 +541,8 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1.5,
   },
-  garmentName: {
-    color: colors.textPrimary,
-    fontWeight: '700',
-    fontSize: 14,
-    letterSpacing: -0.2,
-  },
-  garmentSize: {
-    color: colors.textSecondary,
-    fontSize: 12,
-  },
+  garmentName: { color: colors.textPrimary, fontWeight: '700', fontSize: 14, letterSpacing: -0.2 },
+  garmentSize: { color: colors.textSecondary, fontSize: 12 },
   removeButton: {
     marginRight: spacing.md,
     paddingHorizontal: spacing.sm,
@@ -359,21 +551,9 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     borderColor: colors.error,
   },
-  removeButtonText: {
-    color: colors.error,
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  footer: {
-    marginTop: spacing.lg,
-    gap: spacing.sm,
-  },
-  errorText: {
-    color: colors.error,
-    fontWeight: '600',
-    textAlign: 'center',
-    fontSize: 13,
-  },
+  removeButtonText: { color: colors.error, fontWeight: '700', fontSize: 12 },
+  footer: { marginTop: spacing.lg, gap: spacing.sm },
+  errorText: { color: colors.error, fontWeight: '600', textAlign: 'center', fontSize: 13 },
   saveButton: {
     height: 52,
     borderRadius: radius.round,
@@ -382,15 +562,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     ...shadows.gold,
   },
-  saveButtonDisabled: {
-    backgroundColor: colors.border,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
-  saveButtonText: {
-    color: '#0C0C0E',
-    fontWeight: '800',
-    fontSize: 15,
-    letterSpacing: 0.5,
-  },
+  saveButtonDisabled: { backgroundColor: colors.border, shadowOpacity: 0, elevation: 0 },
+  saveButtonText: { color: '#0C0C0E', fontWeight: '800', fontSize: 15, letterSpacing: 0.5 },
 });

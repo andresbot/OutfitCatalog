@@ -8,6 +8,7 @@ export interface AuthUser {
 }
 
 export type RootStackParamList = {
+  Onboarding: undefined;
   Login: undefined;
   Register: undefined;
   UserHome: undefined;
@@ -24,4 +25,5 @@ export type RootStackParamList = {
   UserManagement: undefined;
   AdminReports: undefined;
   LookModeration: undefined;
+  VendorProfile: undefined;
 };

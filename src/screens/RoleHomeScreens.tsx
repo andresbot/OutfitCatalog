@@ -118,6 +118,11 @@ export function VendorHomeScreen({ navigation }: VendorProps) {
           onPress: () => navigation.navigate('AddEditGarment'),
         },
         {
+          label: 'Mi número de WhatsApp',
+          hint: 'Configura tu número para que los clientes te contacten.',
+          onPress: () => navigation.navigate('VendorProfile'),
+        },
+        {
           label: 'Ver catalogo publico',
           hint: 'Como lo ven los clientes.',
           onPress: () => navigation.navigate('GarmentGallery'),
