@@ -24,9 +24,9 @@ import { GarmentRow, LookItemRow, LookRow } from '../core/database/types';
 import {
   buildShareGroups,
   buildWhatsAppMessage,
-  openWhatsApp,
   VendorShareGroup,
 } from '../core/services/lookShareService';
+import { WhatsAppEditorModal } from '../components/WhatsAppEditorModal';
 import { formatCOP } from '../features/garment/presentation/utils/formatCOP';
 import { colors, radius, shadows, spacing } from '../theme';
 import { RootStackParamList } from '../types';
@@ -59,6 +59,10 @@ export function LookDetailScreen({ navigation, route }: Props) {
   const [shareGroups, setShareGroups] = useState<VendorShareGroup[]>([]);
   const [loadingShare, setLoadingShare] = useState(false);
   const [openingWhatsApp, setOpeningWhatsApp] = useState<string | null>(null);
+
+  // Editor de mensaje WhatsApp (US-14)
+  const [editorVisible, setEditorVisible] = useState(false);
+  const [editorGroup, setEditorGroup] = useState<VendorShareGroup | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -157,13 +161,14 @@ export function LookDetailScreen({ navigation, route }: Props) {
   }, [garmentItems]);
 
   const handleContactVendor = useCallback(
-    async (group: VendorShareGroup) => {
+    (group: VendorShareGroup) => {
       setOpeningWhatsApp(group.vendorId);
-      const message = buildWhatsAppMessage(name || look?.name || '', group);
-      await openWhatsApp(group.vendorPhone, message);
+      setEditorGroup(group);
+      setShareModalVisible(false);
+      setEditorVisible(true);
       setOpeningWhatsApp(null);
     },
-    [look?.name, name],
+    [],
   );
 
   if (loading) {
@@ -262,6 +267,21 @@ export function LookDetailScreen({ navigation, route }: Props) {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Editor de mensaje WhatsApp — US-14 */}
+      {editorGroup && (
+        <WhatsAppEditorModal
+          visible={editorVisible}
+          onClose={() => {
+            setEditorVisible(false);
+            setShareModalVisible(true);
+          }}
+          initialMessage={buildWhatsAppMessage(name || look?.name || '', editorGroup)}
+          initialPhone={editorGroup.vendorPhone}
+          imageUrl={garmentItems[0]?.garment.imageUrl}
+          title={`Mensaje para ${editorGroup.vendorName}`}
+        />
+      )}
 
       <FlatList
         data={garmentItems}

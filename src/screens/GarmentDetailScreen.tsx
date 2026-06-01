@@ -8,7 +8,9 @@ import {
   Text,
   View,
 } from 'react-native';
-import { shareGarment } from '../core/services/lookShareService';
+import { buildGarmentShareMessage } from '../core/services/lookShareService';
+import { getVendorPhone } from '../auth/firebaseUsers';
+import { WhatsAppEditorModal } from '../components/WhatsAppEditorModal';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -31,6 +33,11 @@ export function GarmentDetailScreen({ route, navigation }: Props) {
   const favoriteDao = useMemo(() => new FavoriteDao(getDatabase), []);
   const [isFavorite, setIsFavorite] = useState(false);
   const [sharing, setSharing] = useState(false);
+
+  // Editor de mensaje WhatsApp — US-14
+  const [editorVisible, setEditorVisible] = useState(false);
+  const [editorMessage, setEditorMessage] = useState('');
+  const [editorPhone, setEditorPhone] = useState<string | null>(null);
 
   const { state: tryOnState, start: startTryOn, dismiss: dismissTryOn } = useTryOnViewModel(
     garment?.imageUrl ?? '',
@@ -106,7 +113,8 @@ export function GarmentDetailScreen({ route, navigation }: Props) {
   const handleShare = useCallback(async () => {
     if (!garment) return;
     setSharing(true);
-    await shareGarment({
+    const phone = await getVendorPhone(garment.vendorId);
+    const message = buildGarmentShareMessage({
       name: garment.name,
       category: garment.category,
       price: garment.price,
@@ -117,7 +125,10 @@ export function GarmentDetailScreen({ route, navigation }: Props) {
       vendorId: garment.vendorId,
       vendorName: garment.vendorName,
     });
+    setEditorPhone(phone);
+    setEditorMessage(message);
     setSharing(false);
+    setEditorVisible(true);
   }, [garment]);
 
   useFocusEffect(
@@ -229,6 +240,16 @@ export function GarmentDetailScreen({ route, navigation }: Props) {
           )}
         </Pressable>
       </ScrollView>
+
+      {/* Editor de mensaje WhatsApp — US-14 */}
+      <WhatsAppEditorModal
+        visible={editorVisible}
+        onClose={() => setEditorVisible(false)}
+        initialMessage={editorMessage}
+        initialPhone={editorPhone}
+        imageUrl={garment.imageUrl}
+        title={`Mensaje para ${garment.vendorName}`}
+      />
     </SafeAreaView>
   );
 }
