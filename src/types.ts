@@ -26,4 +26,16 @@ export type RootStackParamList = {
   AdminReports: undefined;
   LookModeration: undefined;
   VendorProfile: undefined;
+  TryOnResult: {
+    resultImageUrl: string;
+    garmentName: string;
+    garmentPrice: number;
+    vendorId: string;
+    vendorName: string;
+    garmentImageUrl: string;
+    garmentCategory: string;
+    garmentSize: string;
+    garmentColor: string;
+    garmentStock: number;
+  };
 };

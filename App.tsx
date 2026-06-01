@@ -24,6 +24,7 @@ import { AdminReportsScreen } from './src/screens/AdminReportsScreen';
 import { LookModerationScreen } from './src/screens/LookModerationScreen';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { VendorProfileScreen } from './src/screens/VendorProfileScreen';
+import { TryOnResultScreen } from './src/screens/TryOnResultScreen';
 import { RootStackParamList } from './src/types';
 import { getIt } from './src/core/di/getIt';
 import { DI_TOKENS, initDependencies } from './src/core/di/injectionContainer';
@@ -86,6 +87,7 @@ export default function App() {
             <Stack.Screen name="AdminReports" component={AdminReportsScreen} />
             <Stack.Screen name="LookModeration" component={LookModerationScreen} />
             <Stack.Screen name="VendorProfile" component={VendorProfileScreen} />
+            <Stack.Screen name="TryOnResult" component={TryOnResultScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </AuthProvider>
