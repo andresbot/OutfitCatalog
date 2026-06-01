@@ -28,35 +28,20 @@ export function useTryOnViewModel(garmentImageUrl: string) {
     if (source === 'camera') {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        setState({
-          status: 'error',
-          message: 'Necesitamos permiso para usar la cámara. Ve a Configuración > OutfitCatalog > Cámara.',
-        });
+        setState({ status: 'error', message: 'Necesitamos permiso para usar la cámara. Ve a Configuración > OutfitCatalog > Cámara.' });
         return null;
       }
     } else {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        setState({
-          status: 'error',
-          message: 'Necesitamos permiso para acceder a tu galería. Ve a Configuración > OutfitCatalog > Fotos.',
-        });
+        setState({ status: 'error', message: 'Necesitamos permiso para acceder a tu galería. Ve a Configuración > OutfitCatalog > Fotos.' });
         return null;
       }
     }
 
     const pickerResult = source === 'camera'
-      ? await ImagePicker.launchCameraAsync({
-          allowsEditing: true,
-          aspect: [3, 4],
-          quality: 0.85,
-        })
-      : await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ['images'],
-          allowsEditing: true,
-          aspect: [3, 4],
-          quality: 0.85,
-        });
+      ? await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [3, 4], quality: 0.85 })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [3, 4], quality: 0.85 });
 
     if (pickerResult.canceled) {
       setState({ status: 'idle' });
@@ -65,6 +50,7 @@ export function useTryOnViewModel(garmentImageUrl: string) {
 
     const localUri = pickerResult.assets[0].uri;
 
+    // Replicate necesita URLs públicas — subir foto del usuario a Cloudinary primero.
     setState({ status: 'uploading' });
     let userPhotoUrl: string;
     try {

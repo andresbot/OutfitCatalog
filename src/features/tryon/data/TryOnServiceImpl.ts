@@ -1,65 +1,94 @@
 import { TryOnService } from '../domain/TryOnService';
 
-const HF_SPACE_URL = 'https://kwai-kolors-kolors-virtual-try-on.hf.space';
-// fn_index 0 corresponde al primer endpoint del espacio Gradio.
-// Si el espacio lo cambia, verificar con: GET ${HF_SPACE_URL}/info
-const FN_INDEX = 0;
+// Implementación de producción con Replicate IDM-VTON.
+// Para activar: registrar TryOnServiceImpl en injectionContainer en vez de TryOnServiceStub.
+// Requiere EXPO_PUBLIC_REPLICATE_TOKEN en el .env (replicate.com → Account → API tokens).
+const REPLICATE_API = 'https://api.replicate.com/v1';
+const IDMVTON_VERSION = 'c871bb9b046607b680449ecbae55fd8c6d945e0a1948644bf2361b3d021d3ff4';
+const POLL_INTERVAL_MS = 4000;
+const TIMEOUT_MS = 180_000;
 
 function getToken(): string {
-  const token = process.env.EXPO_PUBLIC_HF_TOKEN;
-  if (!token) throw new Error('Falta EXPO_PUBLIC_HF_TOKEN en el .env');
+  const token = process.env.EXPO_PUBLIC_REPLICATE_TOKEN;
+  if (!token) throw new Error('Falta EXPO_PUBLIC_REPLICATE_TOKEN en el .env');
   return token;
 }
 
+async function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 export class TryOnServiceImpl implements TryOnService {
+  // userPhotoUrl: URL pública de Cloudinary (foto del usuario).
+  // garmentImageUrl: URL pública de Cloudinary de la prenda.
   async tryOn(userPhotoUrl: string, garmentImageUrl: string): Promise<string> {
     const token = getToken();
 
-    // Gradio v4 acepta imágenes como objetos { url, orig_name }.
-    const body = {
-      fn_index: FN_INDEX,
-      data: [
-        { url: userPhotoUrl, orig_name: 'person.jpg' },
-        { url: garmentImageUrl, orig_name: 'garment.jpg' },
-        'upper_body',
-      ],
-    };
-
-    let response: Response;
-    try {
-      response = await fetch(`${HF_SPACE_URL}/run/predict`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+    const createResp = await fetch(`${REPLICATE_API}/predictions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Prefer: 'wait=5',
+      },
+      body: JSON.stringify({
+        version: IDMVTON_VERSION,
+        input: {
+          human_img: userPhotoUrl,
+          garm_img: garmentImageUrl,
+          garment_des: '',
+          category: 'upper_body',
+          is_checked: true,
+          is_checked_crop: false,
+          denoise_steps: 30,
+          seed: 42,
         },
-        body: JSON.stringify(body),
-      });
-    } catch (networkError: unknown) {
-      const msg = networkError instanceof Error ? networkError.message : 'sin detalles';
-      throw new Error(`No se pudo conectar con HF Kolors: ${msg}`);
-    }
+      }),
+    });
 
-    if (!response.ok) {
-      const text = await response.text().catch(() => '');
-      if (response.status === 503) {
-        throw new Error('El servicio de IA está iniciando. Intenta en 1–2 minutos.');
+    if (!createResp.ok) {
+      const text = await createResp.text().catch(() => '');
+      if (createResp.status === 401) {
+        throw new Error('Token de Replicate inválido. Verifica EXPO_PUBLIC_REPLICATE_TOKEN.');
       }
-      throw new Error(`HF Kolors respondió ${response.status}: ${text.slice(0, 200)}`);
+      throw new Error(`Replicate respondió ${createResp.status}: ${text.slice(0, 150)}`);
     }
 
-    type GradioResponse = {
-      data: Array<{ url?: string; path?: string } | string>;
+    type Prediction = {
+      id: string;
+      status: string;
+      output?: string | string[];
+      error?: string;
+      urls?: { get: string };
     };
 
-    const json = (await response.json()) as GradioResponse;
-    const first = json.data?.[0];
+    let prediction = (await createResp.json()) as Prediction;
 
-    if (typeof first === 'string') return first;
-    if (first && typeof first === 'object' && first.url) return first.url;
+    if (prediction.status === 'succeeded') return extractOutput(prediction.output);
+    if (prediction.status === 'failed') {
+      throw new Error(`Replicate falló: ${prediction.error ?? 'error desconocido'}`);
+    }
 
-    throw new Error(
-      'HF Kolors devolvió un formato inesperado. Verifica el fn_index con /info.',
-    );
+    const pollUrl = prediction.urls?.get ?? `${REPLICATE_API}/predictions/${prediction.id}`;
+    const deadline = Date.now() + TIMEOUT_MS;
+
+    while (Date.now() < deadline) {
+      await sleep(POLL_INTERVAL_MS);
+      const pollResp = await fetch(pollUrl, { headers: { Authorization: `Bearer ${token}` } });
+      if (!pollResp.ok) continue;
+      prediction = (await pollResp.json()) as Prediction;
+      if (prediction.status === 'succeeded') return extractOutput(prediction.output);
+      if (prediction.status === 'failed') {
+        throw new Error(`Replicate falló: ${prediction.error ?? 'error desconocido'}`);
+      }
+    }
+
+    throw new Error('El servicio tardó demasiado. Intenta de nuevo.');
   }
+}
+
+function extractOutput(output: string | string[] | undefined): string {
+  if (typeof output === 'string') return output;
+  if (Array.isArray(output) && output[0]) return output[0];
+  throw new Error(`Formato inesperado de Replicate: ${JSON.stringify(output)}`);
 }
