@@ -70,6 +70,7 @@ type GarmentShareInput = {
   imageUrl: string;
   vendorId: string;
   vendorName: string;
+  resultImageUrl?: string;
 };
 
 function stockLabel(stock: number): string {
@@ -87,7 +88,9 @@ export function buildGarmentShareMessage(g: GarmentShareInput): string {
     `Precio: ${formatCOP(g.price)}`,
     `Disponibilidad: ${stockLabel(g.stock)}`,
     '',
-    g.imageUrl,
+    g.resultImageUrl
+      ? `📸 Así me vería con esta prenda:\n${g.resultImageUrl}`
+      : g.imageUrl,
     '',
     '¿Estás interesado/a en esta prenda?',
     '',
