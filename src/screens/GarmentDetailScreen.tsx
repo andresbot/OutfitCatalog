@@ -18,6 +18,7 @@ import { FavoriteDao } from '../core/database/daos/FavoriteDao';
 import { getDatabase } from '../core/database/database';
 import { formatCOP } from '../features/garment/presentation/utils/formatCOP';
 import { useGarmentDetailViewModel } from '../features/garment/presentation/viewmodels/GarmentDetailViewModel';
+import { useTryOnViewModel } from '../features/tryon/presentation/useTryOnViewModel';
 import { colors, radius, spacing } from '../theme';
 import { RootStackParamList } from '../types';
 
@@ -29,6 +30,28 @@ export function GarmentDetailScreen({ route, navigation }: Props) {
   const favoriteDao = useMemo(() => new FavoriteDao(getDatabase), []);
   const [isFavorite, setIsFavorite] = useState(false);
   const [sharing, setSharing] = useState(false);
+
+  const { state: tryOnState, start: startTryOn, dismiss: dismissTryOn } = useTryOnViewModel(
+    garment?.imageUrl ?? '',
+  );
+
+  const handleTryOn = useCallback(async () => {
+    if (!garment) return;
+    const resultUrl = await startTryOn();
+    if (!resultUrl) return;
+    navigation.navigate('TryOnResult', {
+      resultImageUrl: resultUrl,
+      garmentName: garment.name,
+      garmentPrice: garment.price,
+      vendorId: garment.vendorId,
+      vendorName: garment.vendorName,
+      garmentImageUrl: garment.imageUrl,
+      garmentCategory: garment.category,
+      garmentSize: garment.size,
+      garmentColor: garment.color,
+      garmentStock: garment.stock,
+    });
+  }, [garment, navigation, startTryOn]);
 
   const loadFavorite = useCallback(async () => {
     const userId = auth.user?.id;
@@ -139,6 +162,19 @@ export function GarmentDetailScreen({ route, navigation }: Props) {
           <View style={styles.heartOverlay}>
             <HeartButton isFavorite={isFavorite} onToggle={toggleFavorite} size={28} />
           </View>
+          <Pressable
+            style={styles.tryOnChip}
+            onPress={handleTryOn}
+            disabled={tryOnState.status !== 'idle'}
+          >
+            <Text style={styles.tryOnChipText}>
+              {tryOnState.status === 'uploading'
+                ? 'Subiendo foto...'
+                : tryOnState.status === 'generating'
+                  ? 'Generando look...'
+                  : '✨ Probar con IA'}
+            </Text>
+          </Pressable>
         </View>
 
         <Text style={styles.name}>{garment.name}</Text>
@@ -160,6 +196,13 @@ export function GarmentDetailScreen({ route, navigation }: Props) {
             }
           />
         </View>
+
+        {tryOnState.status === 'error' && (
+          <Pressable onPress={dismissTryOn} style={styles.errorBanner}>
+            <Text style={styles.errorText}>{tryOnState.message}</Text>
+            <Text style={styles.errorDismiss}>Toca para cerrar</Text>
+          </Pressable>
+        )}
 
         <Pressable
           style={[styles.whatsappBtn, sharing && styles.whatsappBtnDisabled]}
@@ -330,5 +373,42 @@ const styles = StyleSheet.create({
     color: '#0C0C0E',
     fontWeight: '800',
     fontSize: 14,
+  },
+  tryOnChip: {
+    position: 'absolute',
+    top: spacing.md,
+    left: spacing.md,
+    backgroundColor: colors.primary,
+    borderRadius: radius.round,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.45,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  tryOnChipText: {
+    color: '#0C0C0E',
+    fontWeight: '800',
+    fontSize: 12,
+    letterSpacing: 0.3,
+  },
+  errorBanner: {
+    backgroundColor: '#2A1010',
+    borderWidth: 1,
+    borderColor: colors.error,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  errorText: {
+    color: colors.error,
+    fontSize: 13,
+  },
+  errorDismiss: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    textDecorationLine: 'underline',
   },
 });
