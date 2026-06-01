@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -58,7 +60,11 @@ export function WhatsAppEditorModal({
       onRequestClose={onClose}
     >
       <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.panel} onPress={() => {}}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.kvoidContainer}
+        >
+        <View style={styles.panel}>
           <View style={styles.handle} />
 
           <Text style={styles.title} numberOfLines={1}>{title}</Text>
@@ -166,7 +172,8 @@ export function WhatsAppEditorModal({
                 : <Text style={styles.sendText}>💬 Enviar</Text>}
             </Pressable>
           </View>
-        </Pressable>
+        </View>
+        </KeyboardAvoidingView>
       </Pressable>
     </Modal>
   );
@@ -177,6 +184,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.65)',
     justifyContent: 'flex-end',
+  },
+  kvoidContainer: {
+    width: '100%',
   },
   panel: {
     backgroundColor: colors.surface,
