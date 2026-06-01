@@ -27,6 +27,8 @@ import { FavoriteRepository } from '../../features/favorite/domain/repositories/
 import { AddFavoriteUseCase } from '../../features/favorite/domain/usecases/AddFavoriteUseCase';
 import { RemoveFavoriteUseCase } from '../../features/favorite/domain/usecases/RemoveFavoriteUseCase';
 import { IsFavoriteUseCase } from '../../features/favorite/domain/usecases/IsFavoriteUseCase';
+import { TryOnUseCase } from '../../features/tryon/domain/TryOnUseCase';
+import { TryOnServiceStub } from '../../features/tryon/data/TryOnServiceStub';
 import { getIt } from './getIt';
 
 export const DI_TOKENS = {
@@ -46,6 +48,7 @@ export const DI_TOKENS = {
   addFavoriteUseCase: 'addFavoriteUseCase',
   removeFavoriteUseCase: 'removeFavoriteUseCase',
   isFavoriteUseCase: 'isFavoriteUseCase',
+  tryOnUseCase: 'tryOnUseCase',
 } as const;
 
 export function initDependencies(): void {
@@ -138,5 +141,10 @@ export function initDependencies(): void {
   getIt.registerSingleton(
     DI_TOKENS.isFavoriteUseCase,
     new IsFavoriteUseCase(getIt.get<FavoriteRepository>(DI_TOKENS.favoriteRepository)),
+  );
+
+  getIt.registerSingleton(
+    DI_TOKENS.tryOnUseCase,
+    new TryOnUseCase(new TryOnServiceStub()),
   );
 }
