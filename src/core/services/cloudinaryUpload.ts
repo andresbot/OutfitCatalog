@@ -25,7 +25,7 @@ export async function uploadToCloudinary(uri: string): Promise<string> {
 
   let response: Response;
   try {
-    response = await fetch(url, { method: 'POST', body: formData });
+    response = await fetch(url, { method: 'POST', body: formData as unknown as BodyInit_ });
   } catch (networkError: any) {
     throw new Error('No se pudo conectar a Cloudinary: ' + (networkError?.message ?? 'error de red'));
   }
