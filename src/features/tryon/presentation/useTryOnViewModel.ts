@@ -22,19 +22,41 @@ export function useTryOnViewModel(garmentImageUrl: string) {
 
   const dismiss = useCallback(() => setState({ status: 'idle' }), []);
 
-  /**
-   * Inicia el flujo completo.
-   * Devuelve la URL del resultado o null si el usuario canceló o hubo error.
-   */
-  const start = useCallback(async (): Promise<string | null> => {
+  const start = useCallback(async (source: 'camera' | 'gallery'): Promise<string | null> => {
     setState({ status: 'picking' });
 
-    const pickerResult = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [3, 4],
-      quality: 0.85,
-    });
+    if (source === 'camera') {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        setState({
+          status: 'error',
+          message: 'Necesitamos permiso para usar la cámara. Ve a Configuración > OutfitCatalog > Cámara.',
+        });
+        return null;
+      }
+    } else {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        setState({
+          status: 'error',
+          message: 'Necesitamos permiso para acceder a tu galería. Ve a Configuración > OutfitCatalog > Fotos.',
+        });
+        return null;
+      }
+    }
+
+    const pickerResult = source === 'camera'
+      ? await ImagePicker.launchCameraAsync({
+          allowsEditing: true,
+          aspect: [3, 4],
+          quality: 0.85,
+        })
+      : await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          allowsEditing: true,
+          aspect: [3, 4],
+          quality: 0.85,
+        });
 
     if (pickerResult.canceled) {
       setState({ status: 'idle' });
@@ -47,8 +69,9 @@ export function useTryOnViewModel(garmentImageUrl: string) {
     let userPhotoUrl: string;
     try {
       userPhotoUrl = await uploadToCloudinary(localUri);
-    } catch {
-      setState({ status: 'error', message: 'No se pudo subir tu foto. Verifica tu conexión.' });
+    } catch (e: unknown) {
+      const detail = e instanceof Error ? e.message : 'error desconocido';
+      setState({ status: 'error', message: `No se pudo subir tu foto: ${detail}` });
       return null;
     }
 

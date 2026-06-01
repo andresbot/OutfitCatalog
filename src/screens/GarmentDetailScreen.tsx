@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -35,9 +36,9 @@ export function GarmentDetailScreen({ route, navigation }: Props) {
     garment?.imageUrl ?? '',
   );
 
-  const handleTryOn = useCallback(async () => {
+  const doTryOn = useCallback(async (source: 'camera' | 'gallery') => {
     if (!garment) return;
-    const resultUrl = await startTryOn();
+    const resultUrl = await startTryOn(source);
     if (!resultUrl) return;
     navigation.navigate('TryOnResult', {
       resultImageUrl: resultUrl,
@@ -52,6 +53,18 @@ export function GarmentDetailScreen({ route, navigation }: Props) {
       garmentStock: garment.stock,
     });
   }, [garment, navigation, startTryOn]);
+
+  const handleTryOn = useCallback(() => {
+    Alert.alert(
+      'Probar con IA',
+      '¿Cómo quieres agregar tu foto?',
+      [
+        { text: '📷 Tomar foto', onPress: () => doTryOn('camera') },
+        { text: '🖼 Elegir de galería', onPress: () => doTryOn('gallery') },
+        { text: 'Cancelar', style: 'cancel' },
+      ],
+    );
+  }, [doTryOn]);
 
   const loadFavorite = useCallback(async () => {
     const userId = auth.user?.id;
