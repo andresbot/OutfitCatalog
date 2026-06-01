@@ -18,6 +18,7 @@ type AuthContextValue = {
     email: string,
     password: string,
     role: UserRole,
+    phone?: string,
   ) => Promise<AuthUser | null>;
   loginWithGoogle: (idToken: string | null, accessToken: string | null) => Promise<AuthUser | null>;
   loginWithGoogleWeb: () => Promise<AuthUser | null>;
@@ -55,7 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return null;
         }
       },
-      async register(name, email, password, role) {
+      async register(name, email, password, role, phone) {
         if (!name.trim() || !email.trim() || password.length < 6) {
           setLastError('Verifica nombre, correo y contrasena (minimo 6).');
           return null;
@@ -67,6 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             email.trim().toLowerCase(),
             password,
             role,
+            phone?.trim() || undefined,
           );
           if (!nextUser) {
             setLastError('No se pudo crear la cuenta en Firebase.');

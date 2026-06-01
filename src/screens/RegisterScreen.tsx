@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { updateUserPhone } from '../auth/firebaseUsers';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as Google from 'expo-auth-session/providers/google';
@@ -39,6 +40,7 @@ export function RegisterScreen({ navigation }: Props) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState('');
   const [role, setRole] = useState<UserRole>('user');
   const [error, setError] = useState('');
   const [emailLoading, setEmailLoading] = useState(false);
@@ -46,6 +48,14 @@ export function RegisterScreen({ navigation }: Props) {
   const [nameFocused, setNameFocused] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passFocused, setPassFocused] = useState(false);
+  const [phoneFocused, setPhoneFocused] = useState(false);
+
+  // Paso de teléfono post-Google para vendedores sin número (US-15)
+  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
+  const [pendingRole, setPendingRole] = useState<UserRole>('user');
+  const [phoneStep, setPhoneStep] = useState(false);
+  const [phoneStepValue, setPhoneStepValue] = useState('');
+  const [phoneStepLoading, setPhoneStepLoading] = useState(false);
 
   const brandAnim = useRef(new Animated.Value(0)).current;
   const cardAnim = useRef(new Animated.Value(0)).current;
@@ -86,6 +96,12 @@ export function RegisterScreen({ navigation }: Props) {
           setError(auth.lastError ?? 'No se pudo iniciar sesion con Google.');
           return;
         }
+        if (loggedUser.role === 'vendor' && !loggedUser.phone) {
+          setPendingUserId(loggedUser.id);
+          setPendingRole(loggedUser.role);
+          setPhoneStep(true);
+          return;
+        }
         navigateByRole(loggedUser.role, navigation);
       } finally {
         setGoogleLoading(false);
@@ -106,6 +122,12 @@ export function RegisterScreen({ navigation }: Props) {
         const loggedUser = await auth.loginWithGoogleWeb();
         if (!loggedUser) {
           setError(auth.lastError ?? 'No se pudo iniciar sesion con Google.');
+          return;
+        }
+        if (loggedUser.role === 'vendor' && !loggedUser.phone) {
+          setPendingUserId(loggedUser.id);
+          setPendingRole(loggedUser.role);
+          setPhoneStep(true);
           return;
         }
         navigateByRole(loggedUser.role, navigation);
@@ -130,7 +152,11 @@ export function RegisterScreen({ navigation }: Props) {
     setEmailLoading(true);
     setError('');
     try {
-      const registeredUser = await auth.register(name, email, password, role);
+      if (role === 'vendor' && phone.trim().length < 10) {
+        setError('Ingresa un número de WhatsApp válido (mínimo 10 dígitos).');
+        return;
+      }
+      const registeredUser = await auth.register(name, email, password, role, phone.trim() || undefined);
       if (!registeredUser) {
         setError(auth.lastError ?? 'No se pudo crear la cuenta.');
         return;
@@ -140,6 +166,81 @@ export function RegisterScreen({ navigation }: Props) {
       setEmailLoading(false);
     }
   };
+
+  // Paso de completar número de teléfono (post Google sign-in para vendedores)
+  if (phoneStep && pendingUserId) {
+    const handlePhoneConfirm = async () => {
+      if (phoneStepValue.trim().length < 10) {
+        setError('Ingresa un número válido (mínimo 10 dígitos).');
+        return;
+      }
+      setPhoneStepLoading(true);
+      setError('');
+      try {
+        await updateUserPhone(pendingUserId, phoneStepValue.trim());
+        navigateByRole(pendingRole, navigation);
+      } catch {
+        setError('No se pudo guardar el número. Intenta de nuevo.');
+      } finally {
+        setPhoneStepLoading(false);
+      }
+    };
+
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.orb} />
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <Animated.View style={[styles.brandWrap, { opacity: 1 }]}>
+            <Text style={styles.brand}>ATELIER</Text>
+            <Text style={styles.brandSub}>Fashion Catalog</Text>
+          </Animated.View>
+
+          <View style={styles.card}>
+            <Text style={styles.title}>Último paso</Text>
+            <Text style={styles.subtitle}>
+              Como vendedor, agrega tu número de WhatsApp para que los clientes puedan contactarte directamente.
+            </Text>
+
+            <View style={[styles.inputWrap, phoneFocused && styles.inputWrapFocused]}>
+              <Text style={styles.inputLabel}>WHATSAPP <Text style={styles.required}>*</Text></Text>
+              <TextInput
+                style={styles.input}
+                placeholder="573001234567"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="phone-pad"
+                value={phoneStepValue}
+                onChangeText={setPhoneStepValue}
+                onFocus={() => setPhoneFocused(true)}
+                onBlur={() => setPhoneFocused(false)}
+                editable={!phoneStepLoading}
+                maxLength={15}
+                autoFocus
+              />
+              <Text style={styles.phoneHint}>Con código de país, sin + · Ej: 573001234567</Text>
+            </View>
+
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+
+            <Pressable
+              style={[styles.primaryButton, phoneStepLoading && styles.buttonDisabled]}
+              onPress={handlePhoneConfirm}
+              disabled={phoneStepLoading}
+            >
+              {phoneStepLoading
+                ? <ActivityIndicator size="small" color="#0C0C0E" />
+                : <Text style={styles.primaryButtonText}>Continuar</Text>}
+            </Pressable>
+
+            <Pressable onPress={() => navigateByRole(pendingRole, navigation)} disabled={phoneStepLoading}>
+              <Text style={[styles.link, { marginTop: -4 }]}>
+                Agregar después →
+              </Text>
+            </Pressable>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -205,6 +306,27 @@ export function RegisterScreen({ navigation }: Props) {
               />
             </View>
           </View>
+
+            {role === 'vendor' && (
+              <View style={[styles.inputWrap, phoneFocused && styles.inputWrapFocused]}>
+                <Text style={styles.inputLabel}>
+                  WHATSAPP <Text style={styles.required}>*</Text>
+                </Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="573001234567"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="phone-pad"
+                  value={phone}
+                  onChangeText={setPhone}
+                  onFocus={() => setPhoneFocused(true)}
+                  onBlur={() => setPhoneFocused(false)}
+                  editable={!submitting}
+                  maxLength={15}
+                />
+                <Text style={styles.phoneHint}>Con código de país, sin + · Ej: 573001234567</Text>
+              </View>
+            )}
 
           <View>
             <Text style={styles.roleLabel}>ROL</Text>
@@ -427,4 +549,6 @@ const styles = StyleSheet.create({
   googleButtonText: { color: colors.textPrimary, fontWeight: '600', fontSize: 14 },
   link: { textAlign: 'center', color: colors.textSecondary, fontSize: 13 },
   linkAccent: { color: colors.primary, fontWeight: '700' },
+  required: { color: colors.error },
+  phoneHint: { color: colors.textMuted, fontSize: 10, marginTop: 2 },
 });

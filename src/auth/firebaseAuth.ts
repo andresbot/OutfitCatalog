@@ -199,6 +199,7 @@ async function getRoleProfile(ctx: FirebaseContext, uid: string): Promise<{
   role: UserRole;
   name: string;
   email: string;
+  phone?: string;
 }> {
   const userRef = ctx.runtime.doc(ctx.db, 'users', uid);
   const snapshot = await ctx.runtime.getDoc(userRef);
@@ -209,21 +210,18 @@ async function getRoleProfile(ctx: FirebaseContext, uid: string): Promise<{
       role: normalizeRole(data.role),
       name: typeof data.name === 'string' ? data.name : 'Usuario',
       email: typeof data.email === 'string' ? data.email : '',
+      phone: typeof data.phone === 'string' && data.phone.trim() ? data.phone.trim() : undefined,
     };
   }
 
-  return {
-    role: 'user',
-    name: 'Usuario',
-    email: '',
-  };
+  return { role: 'user', name: 'Usuario', email: '' };
 }
 
 async function ensureUserProfile(
   ctx: FirebaseContext,
   uid: string,
   fallback: { name: string; email: string; role: UserRole },
-): Promise<{ role: UserRole; name: string; email: string }> {
+): Promise<{ role: UserRole; name: string; email: string; phone?: string }> {
   const current = await getRoleProfile(ctx, uid);
 
   const name = current.name || fallback.name || 'Usuario';
@@ -232,44 +230,27 @@ async function ensureUserProfile(
 
   await ctx.runtime.setDoc(
     ctx.runtime.doc(ctx.db, 'users', uid),
-    {
-      name,
-      email,
-      role,
-      updatedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-    },
+    { name, email, role, updatedAt: new Date().toISOString(), createdAt: new Date().toISOString() },
     { merge: true },
   );
 
-  return { name, email, role };
+  return { name, email, role, phone: current.phone };
 }
 
 export async function signInWithFirebase(email: string, password: string): Promise<AuthUser | null> {
   const ctx = await getFirebaseContext();
-  if (!ctx) {
-    return null;
-  }
+  if (!ctx) return null;
 
   const credentials = await ctx.runtime.signInWithEmailAndPassword(ctx.auth, email, password);
   const { uid } = credentials.user;
   const fallbackEmail = credentials.user.email ?? email;
   const fallbackName = credentials.user.displayName ?? fallbackEmail.split('@')[0] ?? 'Usuario';
 
-  const profile = await ensureUserProfile(ctx, uid, {
-    name: fallbackName,
-    email: fallbackEmail,
-    role: 'user',
-  });
+  const profile = await ensureUserProfile(ctx, uid, { name: fallbackName, email: fallbackEmail, role: 'user' });
   const normalizedEmail = profile.email || fallbackEmail;
   const normalizedName = profile.name || normalizedEmail.split('@')[0] || 'Usuario';
 
-  return {
-    id: uid,
-    name: normalizedName,
-    email: normalizedEmail,
-    role: profile.role,
-  };
+  return { id: uid, name: normalizedName, email: normalizedEmail, role: profile.role, phone: profile.phone };
 }
 
 export async function registerWithFirebase(
@@ -277,28 +258,24 @@ export async function registerWithFirebase(
   email: string,
   password: string,
   role: UserRole,
+  phone?: string,
 ): Promise<AuthUser | null> {
   const ctx = await getFirebaseContext();
-  if (!ctx) {
-    return null;
-  }
+  if (!ctx) return null;
 
   const credentials = await ctx.runtime.createUserWithEmailAndPassword(ctx.auth, email, password);
   const uid = credentials.user.uid;
+  const cleanPhone = phone?.trim() || null;
 
   await ctx.runtime.setDoc(ctx.runtime.doc(ctx.db, 'users', uid), {
     name,
     email: email.trim().toLowerCase(),
     role,
+    phone: cleanPhone,
     createdAt: new Date().toISOString(),
   });
 
-  return {
-    id: uid,
-    name,
-    email: email.trim().toLowerCase(),
-    role,
-  };
+  return { id: uid, name, email: email.trim().toLowerCase(), role, phone: cleanPhone ?? undefined };
 }
 
 export async function signInWithGoogleWeb(): Promise<AuthUser | null> {
@@ -311,18 +288,9 @@ export async function signInWithGoogleWeb(): Promise<AuthUser | null> {
   const fallbackEmail = result.user.email ?? '';
   const fallbackName = result.user.displayName ?? fallbackEmail.split('@')[0] ?? 'Usuario';
 
-  const profile = await ensureUserProfile(ctx, uid, {
-    name: fallbackName,
-    email: fallbackEmail,
-    role: 'user',
-  });
+  const profile = await ensureUserProfile(ctx, uid, { name: fallbackName, email: fallbackEmail, role: 'user' });
 
-  return {
-    id: uid,
-    name: profile.name || fallbackName,
-    email: profile.email || fallbackEmail,
-    role: profile.role,
-  };
+  return { id: uid, name: profile.name || fallbackName, email: profile.email || fallbackEmail, role: profile.role, phone: profile.phone };
 }
 
 export async function signInWithGoogleFirebase(
@@ -338,18 +306,9 @@ export async function signInWithGoogleFirebase(
   const fallbackEmail = result.user.email ?? '';
   const fallbackName = result.user.displayName ?? fallbackEmail.split('@')[0] ?? 'Usuario';
 
-  const profile = await ensureUserProfile(ctx, uid, {
-    name: fallbackName,
-    email: fallbackEmail,
-    role: 'user',
-  });
+  const profile = await ensureUserProfile(ctx, uid, { name: fallbackName, email: fallbackEmail, role: 'user' });
 
-  return {
-    id: uid,
-    name: profile.name || fallbackName,
-    email: profile.email || fallbackEmail,
-    role: profile.role,
-  };
+  return { id: uid, name: profile.name || fallbackName, email: profile.email || fallbackEmail, role: profile.role, phone: profile.phone };
 }
 
 export async function signOutFirebase(): Promise<void> {
