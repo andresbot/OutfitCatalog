@@ -59,7 +59,9 @@ export function WhatsAppEditorModal({
       visible={visible}
       onRequestClose={onClose}
     >
-      <Pressable style={styles.overlay} onPress={onClose}>
+      <View style={styles.container}>
+        {/* Overlay independiente — no envuelve el panel */}
+        <Pressable style={styles.overlay} onPress={onClose} />
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.kvoidContainer}
@@ -174,16 +176,19 @@ export function WhatsAppEditorModal({
           </View>
         </View>
         </KeyboardAvoidingView>
-      </Pressable>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
+  container: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.65)',
     justifyContent: 'flex-end',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.65)',
   },
   kvoidContainer: {
     width: '100%',
