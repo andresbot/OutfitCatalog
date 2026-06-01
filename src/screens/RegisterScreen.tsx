@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -52,7 +52,7 @@ export function RegisterScreen({ navigation }: Props) {
   const slideAnim = useRef(new Animated.Value(40)).current;
   const btnScale = useRef(new Animated.Value(1)).current;
 
-  const roles: UserRole[] = ['user', 'vendor', 'admin'];
+  const roles: UserRole[] = ['user', 'vendor'];
   const submitting = emailLoading || googleLoading;
 
   const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
@@ -81,12 +81,16 @@ export function RegisterScreen({ navigation }: Props) {
       setGoogleLoading(true);
       setError('');
       try {
-        const loggedUser = await auth.loginWithGoogle(idToken, accessToken);
-        if (!loggedUser) {
+        const result = await auth.loginWithGoogle(idToken, accessToken);
+        if (!result) {
           setError(auth.lastError ?? 'No se pudo iniciar sesion con Google.');
           return;
         }
-        navigateByRole(loggedUser.role, navigation);
+        if (result.isNew) {
+          navigation.navigate('GoogleRoleSelect', result.pending);
+        } else {
+          navigateByRole(result.user.role, navigation);
+        }
       } finally {
         setGoogleLoading(false);
       }
@@ -103,12 +107,16 @@ export function RegisterScreen({ navigation }: Props) {
       setGoogleLoading(true);
       setError('');
       try {
-        const loggedUser = await auth.loginWithGoogleWeb();
-        if (!loggedUser) {
+        const result = await auth.loginWithGoogleWeb();
+        if (!result) {
           setError(auth.lastError ?? 'No se pudo iniciar sesion con Google.');
           return;
         }
-        navigateByRole(loggedUser.role, navigation);
+        if (result.isNew) {
+          navigation.navigate('GoogleRoleSelect', result.pending);
+        } else {
+          navigateByRole(result.user.role, navigation);
+        }
       } finally {
         setGoogleLoading(false);
       }

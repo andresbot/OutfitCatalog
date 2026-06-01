@@ -7,10 +7,21 @@ export interface AuthUser {
   role: UserRole;
 }
 
+export type GooglePendingUser = {
+  uid: string;
+  name: string;
+  email: string;
+};
+
+export type GoogleSignInResult =
+  | { isNew: false; user: AuthUser }
+  | { isNew: true; pending: GooglePendingUser };
+
 export type RootStackParamList = {
   Onboarding: undefined;
   Login: undefined;
   Register: undefined;
+  GoogleRoleSelect: GooglePendingUser;
   UserHome: undefined;
   VendorHome: undefined;
   AdminHome: undefined;

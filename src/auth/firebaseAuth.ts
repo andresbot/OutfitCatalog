@@ -1,4 +1,4 @@
-import { AuthUser, UserRole } from '../types';
+import { AuthUser, GooglePendingUser, GoogleSignInResult, UserRole } from '../types';
 
 type FirebaseConfig = {
   apiKey: string;
@@ -301,7 +301,33 @@ export async function registerWithFirebase(
   };
 }
 
-export async function signInWithGoogleWeb(): Promise<AuthUser | null> {
+async function resolveGoogleUser(
+  ctx: FirebaseContext,
+  uid: string,
+  fallbackName: string,
+  fallbackEmail: string,
+): Promise<GoogleSignInResult> {
+  const userRef = ctx.runtime.doc(ctx.db, 'users', uid);
+  const snapshot = await ctx.runtime.getDoc(userRef);
+
+  if (snapshot.exists()) {
+    const data = snapshot.data() as Record<string, unknown>;
+    return {
+      isNew: false,
+      user: {
+        id: uid,
+        name: typeof data.name === 'string' ? data.name : fallbackName,
+        email: typeof data.email === 'string' ? data.email : fallbackEmail,
+        role: normalizeRole(data.role),
+      },
+    };
+  }
+
+  const pending: GooglePendingUser = { uid, name: fallbackName, email: fallbackEmail };
+  return { isNew: true, pending };
+}
+
+export async function signInWithGoogleWeb(): Promise<GoogleSignInResult | null> {
   const ctx = await getFirebaseContext();
   if (!ctx) return null;
 
@@ -311,24 +337,13 @@ export async function signInWithGoogleWeb(): Promise<AuthUser | null> {
   const fallbackEmail = result.user.email ?? '';
   const fallbackName = result.user.displayName ?? fallbackEmail.split('@')[0] ?? 'Usuario';
 
-  const profile = await ensureUserProfile(ctx, uid, {
-    name: fallbackName,
-    email: fallbackEmail,
-    role: 'user',
-  });
-
-  return {
-    id: uid,
-    name: profile.name || fallbackName,
-    email: profile.email || fallbackEmail,
-    role: profile.role,
-  };
+  return resolveGoogleUser(ctx, uid, fallbackName, fallbackEmail);
 }
 
 export async function signInWithGoogleFirebase(
   idToken: string | null,
   accessToken: string | null,
-): Promise<AuthUser | null> {
+): Promise<GoogleSignInResult | null> {
   const ctx = await getFirebaseContext();
   if (!ctx) return null;
 
@@ -338,18 +353,26 @@ export async function signInWithGoogleFirebase(
   const fallbackEmail = result.user.email ?? '';
   const fallbackName = result.user.displayName ?? fallbackEmail.split('@')[0] ?? 'Usuario';
 
-  const profile = await ensureUserProfile(ctx, uid, {
-    name: fallbackName,
-    email: fallbackEmail,
-    role: 'user',
+  return resolveGoogleUser(ctx, uid, fallbackName, fallbackEmail);
+}
+
+export async function completeGoogleSignup(
+  uid: string,
+  name: string,
+  email: string,
+  role: UserRole,
+): Promise<AuthUser | null> {
+  const ctx = await getFirebaseContext();
+  if (!ctx) return null;
+
+  await ctx.runtime.setDoc(ctx.runtime.doc(ctx.db, 'users', uid), {
+    name,
+    email,
+    role,
+    createdAt: new Date().toISOString(),
   });
 
-  return {
-    id: uid,
-    name: profile.name || fallbackName,
-    email: profile.email || fallbackEmail,
-    role: profile.role,
-  };
+  return { id: uid, name, email, role };
 }
 
 export async function signOutFirebase(): Promise<void> {

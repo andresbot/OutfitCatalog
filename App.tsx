@@ -24,6 +24,7 @@ import { AdminReportsScreen } from './src/screens/AdminReportsScreen';
 import { LookModerationScreen } from './src/screens/LookModerationScreen';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { VendorProfileScreen } from './src/screens/VendorProfileScreen';
+import { GoogleRoleSelectScreen } from './src/screens/GoogleRoleSelectScreen';
 import { RootStackParamList } from './src/types';
 import { getIt } from './src/core/di/getIt';
 import { DI_TOKENS, initDependencies } from './src/core/di/injectionContainer';
@@ -71,6 +72,7 @@ export default function App() {
             <Stack.Screen name="Onboarding" component={OnboardingScreen} />
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen name="GoogleRoleSelect" component={GoogleRoleSelectScreen} />
             <Stack.Screen name="UserHome" component={UserHomeScreen} />
             <Stack.Screen name="VendorHome" component={VendorHomeScreen} />
             <Stack.Screen name="AdminHome" component={AdminHomeScreen} />

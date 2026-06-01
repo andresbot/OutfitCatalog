@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useMemo, useState } from 'react';
-import { AuthUser, UserRole } from '../types';
+import { AuthUser, GoogleSignInResult, UserRole } from '../types';
 import {
+  completeGoogleSignup as completeGoogleSignupFn,
   registerWithFirebase,
   signInWithFirebase,
   signInWithGoogleFirebase,
@@ -19,8 +20,9 @@ type AuthContextValue = {
     password: string,
     role: UserRole,
   ) => Promise<AuthUser | null>;
-  loginWithGoogle: (idToken: string | null, accessToken: string | null) => Promise<AuthUser | null>;
-  loginWithGoogleWeb: () => Promise<AuthUser | null>;
+  loginWithGoogle: (idToken: string | null, accessToken: string | null) => Promise<GoogleSignInResult | null>;
+  loginWithGoogleWeb: () => Promise<GoogleSignInResult | null>;
+  completeGoogleSignup: (uid: string, name: string, email: string, role: UserRole) => Promise<AuthUser | null>;
   logout: () => void;
 };
 
@@ -83,14 +85,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
       async loginWithGoogleWeb() {
         try {
-          const nextUser = await signInWithGoogleWeb();
-          if (!nextUser) {
+          const result = await signInWithGoogleWeb();
+          if (!result) {
             setLastError('No se pudo iniciar sesion con Google.');
             return null;
           }
-          setLastError(null);
-          setUser(nextUser);
-          return nextUser;
+          if (!result.isNew) {
+            setLastError(null);
+            setUser(result.user);
+          }
+          return result;
         } catch (error) {
           setLastError(toReadableFirebaseError(error));
           return null;
@@ -98,9 +102,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
       async loginWithGoogle(idToken, accessToken) {
         try {
-          const nextUser = await signInWithGoogleFirebase(idToken, accessToken);
-          if (!nextUser) {
+          const result = await signInWithGoogleFirebase(idToken, accessToken);
+          if (!result) {
             setLastError('No se pudo iniciar sesion con Google.');
+            return null;
+          }
+          if (!result.isNew) {
+            setLastError(null);
+            setUser(result.user);
+          }
+          return result;
+        } catch (error) {
+          setLastError(toReadableFirebaseError(error));
+          return null;
+        }
+      },
+      async completeGoogleSignup(uid, name, email, role) {
+        try {
+          const nextUser = await completeGoogleSignupFn(uid, name, email, role);
+          if (!nextUser) {
+            setLastError('No se pudo crear la cuenta.');
             return null;
           }
           setLastError(null);
