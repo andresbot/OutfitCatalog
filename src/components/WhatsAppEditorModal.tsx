@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Dimensions,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -11,6 +12,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
+
+const PANEL_HEIGHT = Dimensions.get('window').height * 0.85;
 import { Image } from 'expo-image';
 import { openWhatsApp } from '../core/services/lookShareService';
 import { colors, radius, spacing } from '../theme';
@@ -194,10 +197,10 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   panel: {
+    height: PANEL_HEIGHT,
     backgroundColor: colors.surface,
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
-    maxHeight: '90%',
     paddingBottom: spacing.xl,
   },
   handle: {

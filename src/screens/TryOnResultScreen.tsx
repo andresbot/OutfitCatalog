@@ -13,8 +13,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Image } from 'expo-image';
 import { uploadToCloudinary } from '../core/services/cloudinaryUpload';
-import { buildGarmentShareMessage, openWhatsApp } from '../core/services/lookShareService';
+import { buildGarmentShareMessage } from '../core/services/lookShareService';
 import { getVendorPhone } from '../auth/firebaseUsers';
+import { WhatsAppEditorModal } from '../components/WhatsAppEditorModal';
 import { formatCOP } from '../features/garment/presentation/utils/formatCOP';
 import { colors, radius, spacing } from '../theme';
 import { RootStackParamList } from '../types';
@@ -38,6 +39,9 @@ export function TryOnResultScreen({ route, navigation }: Props) {
   const [saving, setSaving] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [savedUrl, setSavedUrl] = useState<string | null>(null);
+  const [editorVisible, setEditorVisible] = useState(false);
+  const [editorMessage, setEditorMessage] = useState('');
+  const [editorPhone, setEditorPhone] = useState<string | null>(null);
 
   const handleSave = useCallback(async () => {
     setSaving(true);
@@ -68,7 +72,9 @@ export function TryOnResultScreen({ route, navigation }: Props) {
         resultImageUrl: savedUrl ?? resultImageUrl,
       });
       const phone = await getVendorPhone(vendorId);
-      await openWhatsApp(phone, message);
+      setEditorMessage(message);
+      setEditorPhone(phone);
+      setEditorVisible(true);
     } finally {
       setSharing(false);
     }
@@ -137,6 +143,14 @@ export function TryOnResultScreen({ route, navigation }: Props) {
               </Text>}
         </Pressable>
       </ScrollView>
+      <WhatsAppEditorModal
+        visible={editorVisible}
+        onClose={() => setEditorVisible(false)}
+        initialMessage={editorMessage}
+        initialPhone={editorPhone}
+        imageUrl={resultImageUrl}
+        title={`Mensaje para ${vendorName}`}
+      />
     </SafeAreaView>
   );
 }
