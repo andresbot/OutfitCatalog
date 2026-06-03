@@ -36,6 +36,10 @@ android/.gradle/
 ios/Pods/
 .env
 
+# Claude Code superpowers
+.superpowers/
+docs/superpowers/
+
 # Generated native artifacts
 *.keystore
 *.p8
