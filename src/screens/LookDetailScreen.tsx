@@ -20,10 +20,15 @@ import { GarmentDao } from '../core/database/daos/GarmentDao';
 import { LookDao } from '../core/database/daos/LookDao';
 import { LookItemDao } from '../core/database/daos/LookItemDao';
 import { getDatabase } from '../core/database/database';
-import { GarmentRow, LookItemRow, LookRow } from '../core/database/types';
+import { GarmentRow, LookRow } from '../core/database/types';
+import { getIt } from '../core/di/getIt';
+import { DI_TOKENS } from '../core/di/injectionContainer';
+import { UpdateLookUseCase } from '../features/look/domain/usecases/UpdateLookUseCase';
+import { DeleteLookUseCase } from '../features/look/domain/usecases/DeleteLookUseCase';
 import {
   buildShareGroups,
   buildWhatsAppMessage,
+  openWhatsApp,
   VendorShareGroup,
 } from '../core/services/lookShareService';
 import { WhatsAppEditorModal } from '../components/WhatsAppEditorModal';
@@ -45,6 +50,14 @@ export function LookDetailScreen({ navigation, route }: Props) {
   const lookDao = useMemo(() => new LookDao(getDatabase), []);
   const lookItemDao = useMemo(() => new LookItemDao(getDatabase), []);
   const garmentDao = useMemo(() => new GarmentDao(getDatabase), []);
+  const updateLookUseCase = useMemo(
+    () => getIt.get<UpdateLookUseCase>(DI_TOKENS.updateLookUseCase),
+    [],
+  );
+  const deleteLookUseCase = useMemo(
+    () => getIt.get<DeleteLookUseCase>(DI_TOKENS.deleteLookUseCase),
+    [],
+  );
 
   const [look, setLook] = useState<LookRow | null>(null);
   const [name, setName] = useState('');
@@ -124,20 +137,13 @@ export function LookDetailScreen({ navigation, route }: Props) {
     setSaving(true);
     setError('');
     try {
-      await lookDao.update({
-        ...look,
+      await updateLookUseCase.execute({
+        id: lookId,
         name: name.trim() || look.name,
         description: description.trim(),
-        updatedAt: new Date().toISOString(),
+        garmentIds: garmentItems.map((g) => g.garment.id),
+        coverImageUrl: garmentItems[0]?.garment.imageUrl ?? null,
       });
-
-      const newItems: LookItemRow[] = garmentItems.map((g, i) => ({
-        id: g.lookItemId,
-        lookId,
-        garmentId: g.garment.id,
-        position: i,
-      }));
-      await lookItemDao.replaceForLook(lookId, newItems);
       navigation.goBack();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al guardar.');
@@ -147,6 +153,28 @@ export function LookDetailScreen({ navigation, route }: Props) {
     auth.user?.id, auth.user?.role, look, name, description,
     garmentItems, lookDao, lookItemDao, lookId, navigation,
   ]);
+
+  const handleDeleteLook = useCallback(() => {
+    Alert.alert(
+      'Eliminar look',
+      `¿Eliminar "${look?.name ?? 'este look'}"? Esta acción no se puede deshacer.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteLookUseCase.execute(lookId);
+              navigation.goBack();
+            } catch {
+              Alert.alert('Error', 'No se pudo eliminar el look.');
+            }
+          },
+        },
+      ],
+    );
+  }, [deleteLookUseCase, look?.name, lookId, navigation]);
 
   const handleOpenShare = useCallback(async () => {
     if (garmentItems.length === 0) {
@@ -171,6 +199,51 @@ export function LookDetailScreen({ navigation, route }: Props) {
     [],
   );
 
+  const handleSendToAll = useCallback(async () => {
+    const withPhone = shareGroups.filter((g) => g.vendorPhone);
+
+    if (withPhone.length === 0) {
+      Alert.alert(
+        'Sin números registrados',
+        'Ningún vendedor de este look tiene número de WhatsApp. Usa "Contactar" en cada tarjeta para escribirles manualmente.',
+      );
+      return;
+    }
+
+    const send = async (index: number): Promise<void> => {
+      if (index >= withPhone.length) {
+        setShareModalVisible(false);
+        const skipped = shareGroups.length - withPhone.length;
+        if (skipped > 0) {
+          Alert.alert(
+            '✅ Listo',
+            `Mensajes enviados a ${withPhone.length} vendedor${withPhone.length > 1 ? 'es' : ''}.\n${skipped} sin número omitido${skipped > 1 ? 's' : ''}.`,
+          );
+        }
+        return;
+      }
+
+      const group = withPhone[index];
+      const message = buildWhatsAppMessage(name || look?.name || '', group);
+      await openWhatsApp(group.vendorPhone, message);
+
+      if (index < withPhone.length - 1) {
+        Alert.alert(
+          `${index + 1} de ${withPhone.length} enviado`,
+          `¿Continuar con ${withPhone[index + 1].vendorName}?`,
+          [
+            { text: 'Continuar →', onPress: () => send(index + 1) },
+            { text: 'Detener', style: 'cancel' },
+          ],
+        );
+      } else {
+        send(index + 1);
+      }
+    };
+
+    await send(0);
+  }, [shareGroups, name, look?.name]);
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
@@ -186,9 +259,14 @@ export function LookDetailScreen({ navigation, route }: Props) {
           <Text style={styles.backLink}>Volver</Text>
         </Pressable>
         <Text style={styles.brand}>ATELIER</Text>
-        <Pressable style={styles.shareBtn} onPress={handleOpenShare}>
-          <Text style={styles.shareBtnText}>Compartir</Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable style={styles.shareBtn} onPress={handleOpenShare}>
+            <Text style={styles.shareBtnText}>Compartir</Text>
+          </Pressable>
+          <Pressable style={styles.deleteBtn} onPress={handleDeleteLook}>
+            <Text style={styles.deleteBtnText}>Eliminar</Text>
+          </Pressable>
+        </View>
       </View>
 
       {/* ── Share modal ── */}
@@ -206,6 +284,14 @@ export function LookDetailScreen({ navigation, route }: Props) {
             <Text style={styles.modalSubtitle}>
               Contacta directamente al vendedor de cada prenda.
             </Text>
+
+            {!loadingShare && shareGroups.some((g) => g.vendorPhone) && (
+              <Pressable style={styles.sendAllBtn} onPress={handleSendToAll}>
+                <Text style={styles.sendAllBtnText}>
+                  💬 Enviar a todos ({shareGroups.filter((g) => g.vendorPhone).length})
+                </Text>
+              </Pressable>
+            )}
 
             {loadingShare ? (
               <View style={styles.shareLoader}>
@@ -374,6 +460,11 @@ const styles = StyleSheet.create({
   },
   brand: { fontSize: 18, fontWeight: '800', color: colors.textPrimary, letterSpacing: 5 },
   backLink: { color: colors.primary, fontWeight: '700', fontSize: 13 },
+  headerActions: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+    alignItems: 'center',
+  },
   shareBtn: {
     borderWidth: 1,
     borderColor: colors.primary,
@@ -383,6 +474,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(201,168,76,0.08)',
   },
   shareBtnText: { color: colors.primary, fontWeight: '700', fontSize: 12 },
+  deleteBtn: {
+    borderWidth: 1,
+    borderColor: colors.error,
+    borderRadius: radius.round,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    backgroundColor: 'rgba(224,82,82,0.08)',
+  },
+  deleteBtnText: { color: colors.error, fontWeight: '700', fontSize: 12 },
 
   // Share modal
   modalOverlay: {
@@ -420,6 +520,26 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: spacing.md,
     lineHeight: 19,
+  },
+  sendAllBtn: {
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.md,
+    height: 50,
+    borderRadius: radius.round,
+    backgroundColor: '#25D366',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#25D366',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  sendAllBtnText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 15,
+    letterSpacing: 0.3,
   },
   shareLoader: {
     paddingVertical: spacing.xl,

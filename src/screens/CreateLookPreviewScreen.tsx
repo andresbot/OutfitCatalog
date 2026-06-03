@@ -69,7 +69,8 @@ export function CreateLookPreviewScreen({ navigation, route }: Props) {
     setError('');
 
     try {
-      await createLookUseCase.execute({ userId, name, description, garmentIds });
+      const coverImageUrl = garments[0]?.imageUrl ?? null;
+      await createLookUseCase.execute({ userId, name, description, garmentIds, coverImageUrl });
       navigation.navigate('Looks');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al guardar el look.');
