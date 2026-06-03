@@ -68,12 +68,16 @@ export function LoginScreen({ navigation }: Props) {
       setGoogleLoading(true);
       setError('');
       try {
-        const loggedUser = await auth.loginWithGoogle(idToken, accessToken);
-        if (!loggedUser) {
+        const result = await auth.loginWithGoogle(idToken, accessToken);
+        if (!result) {
           setError(auth.lastError ?? 'No se pudo iniciar sesion con Google.');
           return;
         }
-        navigateByRole(loggedUser.role, navigation);
+        if (result.isNew) {
+          navigation.navigate('GoogleRoleSelect', result.pending);
+        } else {
+          navigateByRole(result.user.role, navigation);
+        }
       } finally {
         setGoogleLoading(false);
       }
@@ -90,12 +94,16 @@ export function LoginScreen({ navigation }: Props) {
       setGoogleLoading(true);
       setError('');
       try {
-        const loggedUser = await auth.loginWithGoogleWeb();
-        if (!loggedUser) {
+        const result = await auth.loginWithGoogleWeb();
+        if (!result) {
           setError(auth.lastError ?? 'No se pudo iniciar sesion con Google.');
           return;
         }
-        navigateByRole(loggedUser.role, navigation);
+        if (result.isNew) {
+          navigation.navigate('GoogleRoleSelect', result.pending);
+        } else {
+          navigateByRole(result.user.role, navigation);
+        }
       } finally {
         setGoogleLoading(false);
       }
