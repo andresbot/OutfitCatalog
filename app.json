@@ -15,6 +15,14 @@
     "plugins": [
       "expo-sqlite",
       "expo-web-browser"
-    ]
+    ],
+    "android": {
+      "package": "com.camilotriana07.outfitcatalog"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "9734afda-e094-4f65-9e26-40bf44c2625b"
+      }
+    }
   }
 }
