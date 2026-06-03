@@ -20,6 +20,9 @@ import { HeartButton } from '../components/HeartButton';
 import { FavoriteDao } from '../core/database/daos/FavoriteDao';
 import { getDatabase } from '../core/database/database';
 import { formatCOP } from '../features/garment/presentation/utils/formatCOP';
+import { getIt } from '../core/di/getIt';
+import { DI_TOKENS } from '../core/di/injectionContainer';
+import { IsFavoriteUseCase } from '../features/favorite/domain/usecases/IsFavoriteUseCase';
 import { useGarmentDetailViewModel } from '../features/garment/presentation/viewmodels/GarmentDetailViewModel';
 import { useTryOnViewModel } from '../features/tryon/presentation/useTryOnViewModel';
 import { colors, radius, spacing } from '../theme';
@@ -31,6 +34,10 @@ export function GarmentDetailScreen({ route, navigation }: Props) {
   const auth = useAuth();
   const { garment, loading } = useGarmentDetailViewModel(route.params.id);
   const favoriteDao = useMemo(() => new FavoriteDao(getDatabase), []);
+  const isFavoriteUseCase = useMemo(
+    () => getIt.get<IsFavoriteUseCase>(DI_TOKENS.isFavoriteUseCase),
+    [],
+  );
   const [isFavorite, setIsFavorite] = useState(false);
   const [sharing, setSharing] = useState(false);
 
@@ -75,14 +82,10 @@ export function GarmentDetailScreen({ route, navigation }: Props) {
 
   const loadFavorite = useCallback(async () => {
     const userId = auth.user?.id;
-    if (!userId) {
-      setIsFavorite(false);
-      return;
-    }
-
-    const favorite = await favoriteDao.getByUserEntity(userId, 'garment', route.params.id);
-    setIsFavorite(Boolean(favorite));
-  }, [auth.user?.id, favoriteDao, route.params.id]);
+    if (!userId) { setIsFavorite(false); return; }
+    const result = await isFavoriteUseCase.execute(userId, 'garment', route.params.id);
+    setIsFavorite(result);
+  }, [auth.user?.id, isFavoriteUseCase, route.params.id]);
 
   const toggleFavorite = useCallback(async () => {
     if (!garment) {

@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { updateUserPhone } from '../auth/firebaseUsers';
+import { validatePhone, cleanPhone } from '../core/utils/phoneUtils';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as Google from 'expo-auth-session/providers/google';
@@ -62,7 +63,7 @@ export function RegisterScreen({ navigation }: Props) {
   const slideAnim = useRef(new Animated.Value(40)).current;
   const btnScale = useRef(new Animated.Value(1)).current;
 
-  const roles: UserRole[] = ['user', 'vendor', 'admin'];
+  const roles: UserRole[] = ['user', 'vendor'];
   const submitting = emailLoading || googleLoading;
 
   const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
@@ -152,11 +153,15 @@ export function RegisterScreen({ navigation }: Props) {
     setEmailLoading(true);
     setError('');
     try {
-      if (role === 'vendor' && phone.trim().length < 10) {
-        setError('Ingresa un número de WhatsApp válido (mínimo 10 dígitos).');
-        return;
+      if (role === 'vendor') {
+        const phoneErr = validatePhone(phone);
+        if (!cleanPhone(phone)) {
+          setError('El número de WhatsApp es obligatorio para vendedores.');
+          return;
+        }
+        if (phoneErr) { setError(phoneErr); return; }
       }
-      const registeredUser = await auth.register(name, email, password, role, phone.trim() || undefined);
+      const registeredUser = await auth.register(name, email, password, role, cleanPhone(phone) || undefined);
       if (!registeredUser) {
         setError(auth.lastError ?? 'No se pudo crear la cuenta.');
         return;
@@ -170,14 +175,15 @@ export function RegisterScreen({ navigation }: Props) {
   // Paso de completar número de teléfono (post Google sign-in para vendedores)
   if (phoneStep && pendingUserId) {
     const handlePhoneConfirm = async () => {
-      if (phoneStepValue.trim().length < 10) {
-        setError('Ingresa un número válido (mínimo 10 dígitos).');
+      const phoneErr = validatePhone(phoneStepValue);
+      if (!cleanPhone(phoneStepValue) || phoneErr) {
+        setError(phoneErr ?? 'Ingresa un número de WhatsApp válido.');
         return;
       }
       setPhoneStepLoading(true);
       setError('');
       try {
-        await updateUserPhone(pendingUserId, phoneStepValue.trim());
+        await updateUserPhone(pendingUserId, cleanPhone(phoneStepValue));
         navigateByRole(pendingRole, navigation);
       } catch {
         setError('No se pudo guardar el número. Intenta de nuevo.');

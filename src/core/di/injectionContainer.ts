@@ -27,7 +27,13 @@ import { FavoriteRepository } from '../../features/favorite/domain/repositories/
 import { AddFavoriteUseCase } from '../../features/favorite/domain/usecases/AddFavoriteUseCase';
 import { RemoveFavoriteUseCase } from '../../features/favorite/domain/usecases/RemoveFavoriteUseCase';
 import { IsFavoriteUseCase } from '../../features/favorite/domain/usecases/IsFavoriteUseCase';
+import { UpdateLookUseCase } from '../../features/look/domain/usecases/UpdateLookUseCase';
+import { DeleteLookUseCase } from '../../features/look/domain/usecases/DeleteLookUseCase';
+import { LookRemoteDataSourceImpl } from '../../features/look/data/datasources/LookRemoteDataSource';
 import { TryOnUseCase } from '../../features/tryon/domain/TryOnUseCase';
+import { TryOnServiceHuggingFace } from '../../features/tryon/data/TryOnServiceHuggingFace';
+import { TryOnServiceSegmind } from '../../features/tryon/data/TryOnServiceSegmind';
+import { TryOnServiceImpl } from '../../features/tryon/data/TryOnServiceImpl';
 import { TryOnServiceStub } from '../../features/tryon/data/TryOnServiceStub';
 import { getIt } from './getIt';
 
@@ -48,6 +54,8 @@ export const DI_TOKENS = {
   addFavoriteUseCase: 'addFavoriteUseCase',
   removeFavoriteUseCase: 'removeFavoriteUseCase',
   isFavoriteUseCase: 'isFavoriteUseCase',
+  updateLookUseCase: 'updateLookUseCase',
+  deleteLookUseCase: 'deleteLookUseCase',
   tryOnUseCase: 'tryOnUseCase',
 } as const;
 
@@ -110,7 +118,11 @@ export function initDependencies(): void {
 
   getIt.registerSingleton<LookRepository>(
     DI_TOKENS.lookRepository,
-    new LookRepositoryImpl(new LookDao(getDatabase), new LookItemDao(getDatabase)),
+    new LookRepositoryImpl(
+      new LookDao(getDatabase),
+      new LookItemDao(getDatabase),
+      new LookRemoteDataSourceImpl(),
+    ),
   );
 
   getIt.registerSingleton(
@@ -121,6 +133,16 @@ export function initDependencies(): void {
   getIt.registerSingleton(
     DI_TOKENS.getAllLooksUseCase,
     new GetAllLooksUseCase(getIt.get<LookRepository>(DI_TOKENS.lookRepository)),
+  );
+
+  getIt.registerSingleton(
+    DI_TOKENS.updateLookUseCase,
+    new UpdateLookUseCase(getIt.get<LookRepository>(DI_TOKENS.lookRepository)),
+  );
+
+  getIt.registerSingleton(
+    DI_TOKENS.deleteLookUseCase,
+    new DeleteLookUseCase(getIt.get<LookRepository>(DI_TOKENS.lookRepository)),
   );
 
   getIt.registerSingleton<FavoriteRepository>(
@@ -143,8 +165,10 @@ export function initDependencies(): void {
     new IsFavoriteUseCase(getIt.get<FavoriteRepository>(DI_TOKENS.favoriteRepository)),
   );
 
+  const tryOnService = new TryOnServiceStub();
+
   getIt.registerSingleton(
     DI_TOKENS.tryOnUseCase,
-    new TryOnUseCase(new TryOnServiceStub()),
+    new TryOnUseCase(tryOnService),
   );
 }

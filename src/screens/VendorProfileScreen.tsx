@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../auth/AuthContext';
 import { getVendorPhone, updateUserPhone } from '../auth/firebaseUsers';
+import { validatePhone, cleanPhone } from '../core/utils/phoneUtils';
 import { colors, radius, shadows, spacing } from '../theme';
 import { RootStackParamList } from '../types';
 
@@ -41,11 +42,9 @@ export function VendorProfileScreen({ navigation }: Props) {
     const uid = auth.user?.id;
     if (!uid) return;
 
-    const cleaned = phone.replace(/\s/g, '');
-    if (cleaned && !/^\+?\d{7,15}$/.test(cleaned)) {
-      setError('Ingresa un número válido. Ejemplo: +573001234567');
-      return;
-    }
+    const cleaned = cleanPhone(phone);
+    const phoneErr = validatePhone(phone);
+    if (phoneErr) { setError(phoneErr); return; }
 
     setSaving(true);
     setError('');
