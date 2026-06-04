@@ -98,19 +98,10 @@ Configuracion por defecto:
 | Administradores | 3 |
 | Vendedores | 40 |
 | Clientes | 250 |
-| Prendas | 1500 |
-| Total documentos Firestore | 1793 |
+| Prendas | 100 |
+| Total documentos Firestore | 393 |
 
-Configuracion de estres usada como referencia:
-
-| Dato | Cantidad |
-|---|---:|
-| Administradores | 3 |
-| Vendedores | 80 |
-| Clientes | 500 |
-| Usuarios Auth | 583 |
-| Prendas | 3000 |
-| Total documentos Firestore | 3583 |
+La configuracion anterior de miles de prendas se descarta para la demo final porque hacia mas pesada la primera carga del catalogo en Android.
 
 ## 9. Rendimiento en tiendas (ASO)
 

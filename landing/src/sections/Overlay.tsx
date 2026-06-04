@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import { ArrowUp, Download, Play, Smartphone } from 'lucide-react';
 import {
-  apkUrl, authors, navItems, heroMetrics, clientFlow, rolePanels,
+  apkUrl, apkQrImage, authors, navItems, heroMetrics, clientFlow, rolePanels,
   archNodes, kpiCards, proofItems,
 } from '../data/content';
 import { HudPanel } from './HudPanel';
@@ -30,6 +30,16 @@ export function Overlay() {
           <div className="actions">
             <a className="btn btn-primary" href={apkUrl}><Smartphone size={18} />Probar APK</a>
             <a className="btn btn-secondary" href="#whatis"><Play size={18} />Ver experiencia</a>
+          </div>
+          <div className="download-qr-card">
+            <a className="qr-frame" href={apkUrl} aria-label="Descargar APK de ATELIER para Android">
+              <img src={apkQrImage} alt="Codigo QR para descargar el APK de ATELIER en Android" />
+            </a>
+            <div className="qr-copy">
+              <p className="label">Descarga directa Android</p>
+              <strong>Escanea el QR</strong>
+              <span>Abre la camara del celular y descarga el APK final.</span>
+            </div>
           </div>
           <div className="metric-strip">
             {heroMetrics.map((m) => <MetricCounter key={m.label} value={m.value} label={m.label} />)}
@@ -155,6 +165,13 @@ export function Overlay() {
             <a className="btn btn-primary" href={apkUrl}><Download size={18} />Descargar APK</a>
             <a className="btn btn-secondary" href="#hero"><ArrowUp size={18} />Volver arriba</a>
           </div>
+          <a className="demo-qr-card" href={apkUrl} aria-label="Escanear o abrir descarga APK Android">
+            <img src={apkQrImage} alt="QR de descarga del APK Android de ATELIER" />
+            <span>
+              <strong>QR de descarga</strong>
+              <small></small>
+            </span>
+          </a>
           <div className="authors" style={{ justifyContent: 'center' }}>
             {authors.map((a) => <span className="author-chip" key={a}>{a}</span>)}
           </div>

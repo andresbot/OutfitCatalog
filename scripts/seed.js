@@ -9,6 +9,7 @@ const CLOUDINARY_PRESET = 'OutfitCatalog';
 
 const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents`;
 const CLOUDINARY_UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`;
+const TEST_VENDOR_PHONE = '+573104221496';
 
 // ── Fashion images from Unsplash ──────────────────────────────────────────────
 const FASHION_IMAGES = [
@@ -35,21 +36,21 @@ const VENDORS = [
     id: 'vendor-seed-001',
     name: 'María López',
     email: 'maria@boutique-elegance.co',
-    phone: '573152345678',
+    phone: TEST_VENDOR_PHONE,
     storeName: 'Boutique Élégance',
   },
   {
     id: 'vendor-seed-002',
     name: 'Carlos Pérez',
     email: 'carlos@modaurbana.co',
-    phone: '573108765432',
+    phone: TEST_VENDOR_PHONE,
     storeName: 'Moda Urbana Co.',
   },
   {
     id: 'vendor-seed-003',
     name: 'Ana García',
     email: 'ana@casacouture.co',
-    phone: '573167890123',
+    phone: TEST_VENDOR_PHONE,
     storeName: 'Casa Couture',
   },
 ];

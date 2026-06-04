@@ -68,7 +68,7 @@ npx eas-cli@latest build -p android --profile preview --non-interactive
 Resultado final de esta entrega:
 
 ```text
-https://expo.dev/artifacts/eas/op3jk14owqSZtyJV5J7rBA.apk
+https://expo.dev/artifacts/eas/hFhAPFSHte8uvkEKgF2FTW.apk
 ```
 
 ## 7. Publicacion en tiendas

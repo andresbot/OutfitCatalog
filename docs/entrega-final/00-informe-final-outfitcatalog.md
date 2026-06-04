@@ -61,7 +61,7 @@ La version final incluye:
 |---|---|
 | Repositorio | `https://github.com/andresbot/OutfitCatalog.git` |
 | Commit final | `5bd8d25 feat: optimiza inventario y solicitudes de compra` |
-| APK final | `https://expo.dev/artifacts/eas/op3jk14owqSZtyJV5J7rBA.apk` |
+| APK final | `https://expo.dev/artifacts/eas/hFhAPFSHte8uvkEKgF2FTW.apk` |
 | EAS Build ID | `b56095a2-87a4-4dac-ae47-7f5d8599dee4` |
 | Estado del build | `FINISHED` |
 | Comando de build TypeScript | `npm run build` |

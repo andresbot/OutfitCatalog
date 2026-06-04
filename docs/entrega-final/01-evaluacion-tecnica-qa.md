@@ -33,7 +33,7 @@ com.camilotriana07.outfitcatalog
 El APK final fue generado correctamente mediante EAS Build:
 
 ```text
-https://expo.dev/artifacts/eas/op3jk14owqSZtyJV5J7rBA.apk
+https://expo.dev/artifacts/eas/hFhAPFSHte8uvkEKgF2FTW.apk
 ```
 
 La construccion remota finalizo con estado `FINISHED`, por lo cual el proyecto compila correctamente para Android en el entorno de Expo.
@@ -68,16 +68,16 @@ El script `scripts/seed-massive.js` permite poblar datos de prueba:
 | Administradores | 3 |
 | Vendedores | 40 |
 | Clientes | 250 |
-| Prendas | 1500 |
-| Documentos Firestore | 1793 |
+| Prendas | 100 |
+| Documentos Firestore | 393 |
 
-Tambien permite una carga mayor mediante parametros, por ejemplo:
+Para mantener la app fluida en celulares Android de prueba, la carga recomendada mantiene el catalogo en 100 prendas:
 
 ```bash
-npm run seed:massive -- --service-account "ruta.json" --auth-users --vendors 80 --clients 500 --admins 3 --garments 3000
+npm run seed:massive -- --service-account "ruta.json" --auth-users --vendors 40 --clients 250 --admins 3 --garments 100
 ```
 
-Ese escenario genera 583 usuarios y 3000 prendas, para un total de 3583 documentos Firestore.
+Ese escenario genera 293 usuarios y 100 prendas, para un total de 393 documentos Firestore.
 
 ### Riesgos de rendimiento
 

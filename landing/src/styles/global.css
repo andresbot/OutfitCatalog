@@ -119,6 +119,7 @@ h1.hero-title {
 }
 #hero .hero-subtitle { animation: introItem .66s cubic-bezier(.2,.8,.2,1) 1.16s both; }
 #hero .actions { animation: introItem .66s cubic-bezier(.2,.8,.2,1) 1.3s both; }
+#hero .download-qr-card { animation: introItem .66s cubic-bezier(.2,.8,.2,1) 1.38s both; }
 #hero .metric-strip { animation: introItem .66s cubic-bezier(.2,.8,.2,1) 1.46s both; }
 .hero-subtitle { color: var(--muted); font-size: clamp(15px, 2vw, 19px); line-height: 1.6; max-width: 540px; margin: 18px 0 26px; }
 .scene-section h2 { font-size: clamp(26px, 4vw, 44px); margin: 0 0 14px; letter-spacing: -.5px; }
@@ -132,6 +133,76 @@ h1.hero-title {
 .btn:hover { transform: translateY(-2px); }
 .btn-primary { background: linear-gradient(135deg, var(--gold), var(--gold-dark)); color: #0c0c0e; box-shadow: 0 8px 30px rgba(201,168,76,.35); }
 .btn-secondary { border: 1px solid var(--line-strong); color: var(--ivory); }
+
+/* app download QR */
+.download-qr-card,
+.demo-qr-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 18px;
+  padding: 10px 14px 10px 10px;
+  border: 1px solid rgba(201,168,76,.34);
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(240,234,214,.08), rgba(201,168,76,.05)),
+    rgba(8,8,9,.48);
+  box-shadow: 0 16px 42px rgba(0,0,0,.32), inset 0 0 24px rgba(201,168,76,.07);
+  text-decoration: none;
+}
+.qr-frame {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 94px;
+  height: 94px;
+  padding: 7px;
+  border-radius: 14px;
+  background: #f8f5ed;
+  border: 1px solid rgba(240,234,214,.7);
+  box-shadow: 0 10px 30px rgba(0,0,0,.35);
+}
+.qr-frame img,
+.demo-qr-card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.qr-copy {
+  min-width: 0;
+  max-width: 280px;
+}
+.qr-copy .label { margin: 0 0 5px; }
+.qr-copy strong,
+.demo-qr-card strong {
+  display: block;
+  color: var(--ivory);
+  font-size: 16px;
+  line-height: 1.2;
+}
+.qr-copy span,
+.demo-qr-card small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.demo-qr-card {
+  margin: 20px auto 0;
+  text-align: left;
+}
+.demo-qr-card img {
+  width: 92px;
+  height: 92px;
+  padding: 7px;
+  border-radius: 14px;
+  background: #f8f5ed;
+  border: 1px solid rgba(240,234,214,.7);
+}
 
 /* metrics */
 .metric-strip { display: flex; gap: 28px; flex-wrap: wrap; margin-top: 30px; }
@@ -295,6 +366,23 @@ h1.hero-title {
     font-size: 13px;
     gap: 8px;
   }
+  .download-qr-card,
+  .demo-qr-card {
+    width: 100%;
+    gap: 12px;
+    padding: 10px;
+    border-radius: 14px;
+  }
+  .qr-frame,
+  .demo-qr-card img {
+    width: 82px;
+    height: 82px;
+    border-radius: 12px;
+  }
+  .qr-copy strong,
+  .demo-qr-card strong { font-size: 14px; }
+  .qr-copy span,
+  .demo-qr-card small { font-size: 11.5px; }
   .metric-strip {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -346,7 +434,7 @@ h1.hero-title {
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .scene-fixed, .nav-shell, .hero-panel, .hero-panel::after, #hero .eyebrow, #hero .hero-title, #hero .hero-subtitle, #hero .actions, #hero .metric-strip, .app-shell::before, .app-shell::after {
+  .scene-fixed, .nav-shell, .hero-panel, .hero-panel::after, #hero .eyebrow, #hero .hero-title, #hero .hero-subtitle, #hero .actions, #hero .download-qr-card, #hero .metric-strip, .app-shell::before, .app-shell::after {
     animation: none !important;
   }
   .app-shell::before, .app-shell::after { display: none; }

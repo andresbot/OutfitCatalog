@@ -138,3 +138,9 @@ Password: Admin123!
 Rol: admin
 Telefono: 3104221496
 ```
+
+Para pruebas actuales de contacto por WhatsApp, los vendedores generados por seed usan:
+
+```text
+Telefono vendedores: +573104221496
+```

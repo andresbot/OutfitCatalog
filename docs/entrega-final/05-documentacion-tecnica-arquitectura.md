@@ -213,7 +213,7 @@ El perfil `preview` en `eas.json` genera APK:
 |---|---|
 | Commit | `5bd8d25` |
 | Build ID | `b56095a2-87a4-4dac-ae47-7f5d8599dee4` |
-| APK | `https://expo.dev/artifacts/eas/op3jk14owqSZtyJV5J7rBA.apk` |
+| APK | `https://expo.dev/artifacts/eas/hFhAPFSHte8uvkEKgF2FTW.apk` |
 | Estado | `FINISHED` |
 
 ## 14. Mantenibilidad

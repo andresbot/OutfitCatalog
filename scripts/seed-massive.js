@@ -2,7 +2,7 @@
 // Massive Firestore seed for OutfitCatalog.
 // Usage examples:
 //   node scripts/seed-massive.js --dry-run
-//   node scripts/seed-massive.js --vendors 40 --clients 250 --admins 3 --garments 1500
+//   node scripts/seed-massive.js --vendors 40 --clients 250 --admins 3 --garments 100
 //   node scripts/seed-massive.js --auth-users --password Atelier123!
 //   node scripts/seed-massive.js --service-account .\service-account.json --auth-users
 
@@ -14,11 +14,11 @@ const DEFAULTS = {
   admins: 3,
   batchSize: 400,
   clients: 250,
-  garments: 1500,
+  garments: 100,
   password: 'Atelier123!',
   prefix: 'mass',
   seed: 7391,
-  vendorPhone: '3104221496',
+  vendorPhone: '+573104221496',
   vendors: 40,
 };
 

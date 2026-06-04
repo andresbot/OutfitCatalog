@@ -17,6 +17,14 @@
       "expo-sqlite",
       "expo-web-browser",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "ATELIER usa tus fotos solo cuando eliges una imagen para una prenda o prueba visual.",
+          "cameraPermission": "ATELIER usa la camara solo cuando decides tomar una foto para una prueba visual.",
+          "microphonePermission": false
+        }
+      ],
+      [
         "@react-native-google-signin/google-signin",
         {
           "iosUrlScheme": "com.googleusercontent.apps.154090480908-pm39r8h62oj3mvetlm3at4e69945h8gf"
@@ -25,6 +33,11 @@
     ],
     "android": {
       "package": "com.camilotriana07.outfitcatalog",
+      "versionCode": 2,
+      "allowBackup": false,
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0C0C0E"

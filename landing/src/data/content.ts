@@ -5,7 +5,8 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
-export const apkUrl = 'https://expo.dev/artifacts/eas/op3jk14owqSZtyJV5J7rBA.apk';
+export const apkUrl = 'https://expo.dev/artifacts/eas/hFhAPFSHte8uvkEKgF2FTW.apk';
+export const apkQrImage = '/apk-qr.png';
 
 export const authors = ['Andres Botero', 'Juan Camilo Triana'] as const;
 
