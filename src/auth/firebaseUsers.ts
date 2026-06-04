@@ -139,7 +139,7 @@ export async function updateUserPhone(uid: string, phone: string): Promise<boole
   return true;
 }
 
-export async function getVendorPhone(vendorId: string): Promise<string | null> {
+export async function getUserPhone(uid: string): Promise<string | null> {
   const runtime = tryLoadRuntime();
   const db = getDb();
   if (!runtime || !db) return null;
@@ -147,11 +147,15 @@ export async function getVendorPhone(vendorId: string): Promise<string | null> {
   try {
     // eslint-disable-next-line global-require
     const { getDoc } = require('firebase/firestore');
-    const snap = await getDoc(runtime.doc(db, 'users', vendorId));
+    const snap = await getDoc(runtime.doc(db, 'users', uid));
     if (!snap.exists()) return null;
     const data = snap.data() as Record<string, unknown>;
     return typeof data.phone === 'string' && data.phone.trim() ? data.phone.trim() : null;
   } catch {
     return null;
   }
+}
+
+export async function getVendorPhone(vendorId: string): Promise<string | null> {
+  return getUserPhone(vendorId);
 }

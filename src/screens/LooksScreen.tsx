@@ -74,26 +74,41 @@ export function LooksScreen({ navigation }: Props) {
     }
 
     const rows = await lookDao.listByUserId(userId);
-    const cards = await Promise.all(
-      rows.map(async (look) => {
-        const items = await lookItemDao.listByLookId(look.id);
-        const garmentResults = await Promise.all(
-          items.slice(0, 4).map((item) => garmentDao.getById(item.garmentId)),
-        );
-        const coverImages = garmentResults
-          .filter((g): g is NonNullable<typeof g> => g !== null)
-          .map((g) => g.imageUrl);
+    const allItems = await lookItemDao.listByLookIds(rows.map((look) => look.id));
+    const itemsByLookId = new Map<string, typeof allItems>();
 
-        return {
-          id: look.id,
-          name: look.name,
-          description: look.description,
-          itemCount: items.length,
-          coverImages,
-          createdAt: look.createdAt,
-        };
-      }),
+    for (const item of allItems) {
+      const current = itemsByLookId.get(item.lookId) ?? [];
+      current.push(item);
+      itemsByLookId.set(item.lookId, current);
+    }
+
+    const coverGarmentIds = Array.from(
+      new Set(
+        rows.flatMap((look) =>
+          (itemsByLookId.get(look.id) ?? []).slice(0, 4).map((item) => item.garmentId),
+        ),
+      ),
     );
+    const coverGarments = await garmentDao.listByIds(coverGarmentIds);
+    const garmentById = new Map(coverGarments.map((garment) => [garment.id, garment]));
+    const cards = rows.map((look) => {
+      const items = itemsByLookId.get(look.id) ?? [];
+      const coverImages = items
+        .slice(0, 4)
+        .map((item) => garmentById.get(item.garmentId)?.imageUrl)
+        .filter((imageUrl): imageUrl is string => Boolean(imageUrl));
+
+      return {
+        id: look.id,
+        name: look.name,
+        description: look.description,
+        itemCount: items.length,
+        coverImages,
+        createdAt: look.createdAt,
+      };
+    });
+
     setLooks(sortLooks(cards));
   }, [auth.user?.id, lookDao, lookItemDao, garmentDao, sortLooks]);
 
@@ -151,6 +166,13 @@ export function LooksScreen({ navigation }: Props) {
         onPress={() => navigation.navigate('GarmentGallery', { selectionMode: true })}
       >
         <Text style={styles.primaryButtonText}>Nuevo look</Text>
+      </Pressable>
+
+      <Pressable
+        style={styles.secondaryButton}
+        onPress={() => navigation.navigate('Favorites')}
+      >
+        <Text style={styles.secondaryButtonText}>Crear desde favoritos</Text>
       </Pressable>
 
       {looks.length > 0 && (
@@ -227,6 +249,11 @@ export function LooksScreen({ navigation }: Props) {
           />
         )}
         contentContainerStyle={styles.container}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        updateCellsBatchingPeriod={50}
+        removeClippedSubviews
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       />
     </SafeAreaView>
@@ -290,6 +317,22 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontSize: 14,
     letterSpacing: 0.5,
+  },
+  secondaryButton: {
+    height: 48,
+    borderRadius: radius.round,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: 'rgba(201,168,76,0.10)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  secondaryButtonText: {
+    color: colors.primary,
+    fontWeight: '800',
+    fontSize: 14,
+    letterSpacing: 0.3,
   },
   sortContainer: {
     marginBottom: spacing.md,

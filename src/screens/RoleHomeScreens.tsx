@@ -9,6 +9,10 @@ import { LookDao } from '../core/database/daos/LookDao';
 import { FavoriteDao } from '../core/database/daos/FavoriteDao';
 import { getDatabase } from '../core/database/database';
 import { listAllUsers } from '../auth/firebaseUsers';
+import {
+  getVendorStockMetrics,
+  listPurchaseRequestsForUser,
+} from '../core/services/purchaseRequestService';
 
 type UserProps = NativeStackScreenProps<RootStackParamList, 'UserHome'>;
 type VendorProps = NativeStackScreenProps<RootStackParamList, 'VendorHome'>;
@@ -21,6 +25,7 @@ export function UserHomeScreen({ navigation }: UserProps) {
   const lookDao = useMemo(() => new LookDao(getDatabase), []);
   const [favorites, setFavorites] = useState(0);
   const [looksCount, setLooksCount] = useState(0);
+  const [requestsCount, setRequestsCount] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
@@ -28,12 +33,18 @@ export function UserHomeScreen({ navigation }: UserProps) {
       if (!userId) {
         setFavorites(0);
         setLooksCount(0);
+        setRequestsCount(0);
         return;
       }
 
-      Promise.all([favoriteDao.listByUserId(userId), lookDao.listByUserId(userId)]).then(([favs, looks]) => {
+      Promise.all([
+        favoriteDao.listByUserId(userId),
+        lookDao.listByUserId(userId),
+        listPurchaseRequestsForUser(userId, 'buyer').catch(() => []),
+      ]).then(([favs, looks, requests]) => {
         setFavorites(favs.filter((f) => f.entityType === 'garment').length);
         setLooksCount(looks.length);
+        setRequestsCount(requests.length);
       });
     }, [auth.user?.id, favoriteDao, lookDao]),
   );
@@ -46,12 +57,18 @@ export function UserHomeScreen({ navigation }: UserProps) {
       stats={[
         { label: 'Favoritos', value: String(favorites) },
         { label: 'Mis looks', value: String(looksCount) },
+        { label: 'Solicitudes', value: String(requestsCount) },
       ]}
       quick={[
         {
           label: 'Mis looks',
           hint: 'Combinaciones guardadas.',
           onPress: () => navigation.navigate('Looks'),
+        },
+        {
+          label: 'Mis solicitudes',
+          hint: 'Seguimiento de reservas e intereses.',
+          onPress: () => navigation.navigate('PurchaseRequests', { mode: 'buyer' }),
         },
         {
           label: 'Favoritos',
@@ -78,22 +95,50 @@ export function VendorHomeScreen({ navigation }: VendorProps) {
   const auth = useAuth();
   const userName = auth.user?.name ?? 'Vendedor';
   const garmentDao = useMemo(() => new GarmentDao(getDatabase), []);
-  const [total, setTotal] = useState(0);
-  const [low, setLow] = useState(0);
+  const [productCount, setProductCount] = useState(0);
+  const [availableUnits, setAvailableUnits] = useState(0);
+  const [lowStockProducts, setLowStockProducts] = useState(0);
+  const [outOfStockProducts, setOutOfStockProducts] = useState(0);
+  const [reservedUnits, setReservedUnits] = useState(0);
+  const [soldUnits, setSoldUnits] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
       const vendorId = auth.user?.id;
       if (!vendorId) {
-        setTotal(0);
-        setLow(0);
+        setProductCount(0);
+        setAvailableUnits(0);
+        setLowStockProducts(0);
+        setOutOfStockProducts(0);
+        setReservedUnits(0);
+        setSoldUnits(0);
         return;
       }
 
-      garmentDao.listByVendorId(vendorId).then((rows) => {
-        setTotal(rows.length);
-        setLow(rows.filter((g) => g.stock > 0 && g.stock <= 5).length);
-      });
+      Promise.all([
+        garmentDao.listByVendorId(vendorId),
+        getVendorStockMetrics(vendorId).catch(() => null),
+      ]).then(([rows, remoteMetrics]) => {
+          const useRemoteInventory = remoteMetrics !== null && remoteMetrics.productCount > 0;
+          setProductCount(useRemoteInventory ? remoteMetrics.productCount : rows.length);
+          setAvailableUnits(
+            useRemoteInventory
+              ? remoteMetrics.availableUnits
+              : rows.reduce((sum, garment) => sum + garment.stock, 0),
+          );
+          setLowStockProducts(
+            useRemoteInventory
+              ? remoteMetrics.lowStockProducts
+              : rows.filter((g) => g.stock > 0 && g.stock <= 5).length,
+          );
+          setOutOfStockProducts(
+            useRemoteInventory
+              ? remoteMetrics.outOfStockProducts
+              : rows.filter((g) => g.stock === 0).length,
+          );
+          setReservedUnits(remoteMetrics?.reservedUnits ?? 0);
+          setSoldUnits(remoteMetrics?.soldUnits ?? 0);
+        });
     }, [auth.user?.id, garmentDao]),
   );
 
@@ -103,10 +148,19 @@ export function VendorHomeScreen({ navigation }: VendorProps) {
       subtitle="Gestiona inventario, publicaciones y disponibilidad de prendas."
       userName={userName}
       stats={[
-        { label: 'Mis productos', value: String(total) },
-        { label: 'Stock bajo', value: String(low) },
+        { label: 'Productos', value: String(productCount) },
+        { label: 'Unidades', value: String(availableUnits) },
+        { label: 'Stock bajo', value: String(lowStockProducts) },
+        { label: 'Agotadas', value: String(outOfStockProducts) },
+        { label: 'Reservadas', value: String(reservedUnits) },
+        { label: 'Vendidas', value: String(soldUnits) },
       ]}
       quick={[
+        {
+          label: 'Solicitudes recibidas',
+          hint: 'Clientes interesados y reservas.',
+          onPress: () => navigation.navigate('PurchaseRequests', { mode: 'vendor' }),
+        },
         {
           label: 'Gestionar inventario',
           hint: 'Editar, eliminar y revisar stock.',

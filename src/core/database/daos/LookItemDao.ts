@@ -23,6 +23,26 @@ export class LookItemDao {
     );
   }
 
+  async listByLookIds(lookIds: string[]): Promise<LookItemRow[]> {
+    if (lookIds.length === 0) {
+      return [];
+    }
+
+    const database = await this.database();
+    const placeholders = lookIds.map(() => '?').join(', ');
+    return database.getAllAsync<LookItemRow>(
+      `SELECT
+        id,
+        look_id AS lookId,
+        garment_id AS garmentId,
+        position
+      FROM look_items
+      WHERE look_id IN (${placeholders})
+      ORDER BY look_id ASC, position ASC`,
+      ...lookIds,
+    );
+  }
+
   async getById(id: string): Promise<LookItemRow | null> {
     const database = await this.database();
     return database.getFirstAsync<LookItemRow>(

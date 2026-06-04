@@ -421,6 +421,13 @@ export function createInMemorySqliteClient(initialState?: Partial<DatabaseState>
         return orderGarments(clone(matches)) as T[];
       }
 
+      if (normalizedSql.includes('FROM garments WHERE id IN')) {
+        const ids = new Set(params.map((param) => String(param)));
+        return orderGarments(
+          clone(state.garments.filter((garment) => ids.has(garment.id))),
+        ) as T[];
+      }
+
       if (normalizedSql.includes('FROM garments WHERE published = 1')) {
         return orderGarments(
           clone(state.garments.filter((garment) => garment.published === 1)),
@@ -437,6 +444,14 @@ export function createInMemorySqliteClient(initialState?: Partial<DatabaseState>
         return orderGarments(clone(state.garments)) as T[];
       }
 
+      if (normalizedSql.includes('FROM looks WHERE user_id = ? AND id IN')) {
+        const userId = String(params[0]);
+        const ids = new Set(params.slice(1).map((param) => String(param)));
+        return orderLooks(
+          clone(state.looks.filter((look) => look.userId === userId && ids.has(look.id))),
+        ) as T[];
+      }
+
       if (normalizedSql.includes('FROM looks WHERE user_id = ?')) {
         return orderLooks(
           clone(state.looks.filter((look) => look.userId === String(params[0]))),
@@ -445,6 +460,14 @@ export function createInMemorySqliteClient(initialState?: Partial<DatabaseState>
 
       if (normalizedSql.includes('FROM looks')) {
         return orderLooks(clone(state.looks)) as T[];
+      }
+
+      if (normalizedSql.includes('FROM look_items WHERE look_id IN')) {
+        const lookIds = new Set(params.map((param) => String(param)));
+        return clone(state.lookItems.filter((item) => lookIds.has(item.lookId))).sort(
+          (left, right) =>
+            left.lookId.localeCompare(right.lookId) || left.position - right.position,
+        ) as T[];
       }
 
       if (normalizedSql.includes('FROM look_items WHERE look_id = ?')) {

@@ -28,6 +28,12 @@ function navigateByRole(role: string, navigation: Props['navigation']) {
   if (role === 'admin') navigation.replace('AdminHome');
 }
 
+function waitForButtonFeedback(): Promise<void> {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => setTimeout(resolve, 0));
+  });
+}
+
 export function LoginScreen({ navigation }: Props) {
   const auth = useAuth();
   const [email, setEmail] = useState('');
@@ -70,6 +76,7 @@ export function LoginScreen({ navigation }: Props) {
       setGoogleLoading(true);
       setError('');
       try {
+        await waitForButtonFeedback();
         const result = await auth.loginWithGoogle(idToken, accessToken);
         if (!result) {
           setError(auth.lastError ?? 'No se pudo iniciar sesion con Google.');
@@ -96,6 +103,7 @@ export function LoginScreen({ navigation }: Props) {
       setGoogleLoading(true);
       setError('');
       try {
+        await waitForButtonFeedback();
         const result = await auth.loginWithGoogleNative();
         if (!result) {
           setError(auth.lastError ?? 'No se pudo iniciar sesion con Google.');
@@ -113,6 +121,7 @@ export function LoginScreen({ navigation }: Props) {
       setGoogleLoading(true);
       setError('');
       try {
+        await waitForButtonFeedback();
         const result = await auth.loginWithGoogleWeb();
         if (!result) {
           setError(auth.lastError ?? 'No se pudo iniciar sesion con Google.');
@@ -144,6 +153,7 @@ export function LoginScreen({ navigation }: Props) {
     setEmailLoading(true);
     setError('');
     try {
+      await waitForButtonFeedback();
       const loggedUser = await auth.login(email, password);
       if (!loggedUser) {
         setError(auth.lastError ?? 'No se pudo iniciar sesion.');

@@ -47,6 +47,10 @@ describe('GarmentDao', () => {
 
     expect((await dao.getById('g-100'))?.name).toBe('Blazer noir');
     expect(await dao.getByIdForVendor('g-100', 'vendor-2')).toBeNull();
+    expect((await dao.listByIds(['sku-200', 'g-100', 'missing'])).map((g) => g.id)).toEqual([
+      'g-100',
+      'sku-200',
+    ]);
     expect(await dao.listByVendorId('vendor-1')).toHaveLength(1);
     expect(await dao.listPublished()).toHaveLength(1);
     expect(await dao.searchPublished('vendedor uno')).toHaveLength(1);

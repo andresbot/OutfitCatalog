@@ -21,7 +21,19 @@ describe('LookItemDao', () => {
       position: 2,
     });
 
+    await dao.create({
+      id: 'li-099',
+      lookId: 'l-002',
+      garmentId: 'g-099',
+      position: 1,
+    });
+
     expect((await dao.listByLookId('l-001')).map((item) => item.id)).toEqual(['li-001', 'li-002']);
+    expect((await dao.listByLookIds(['l-001', 'l-002'])).map((item) => item.id)).toEqual([
+      'li-001',
+      'li-002',
+      'li-099',
+    ]);
 
     await dao.update({
       id: 'li-002',

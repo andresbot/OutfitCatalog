@@ -204,6 +204,36 @@ export class GarmentDao {
     );
   }
 
+  async listByIds(ids: string[]): Promise<GarmentRow[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    const database = await this.database();
+    const placeholders = ids.map(() => '?').join(', ');
+    return database.getAllAsync<GarmentRow>(
+      `SELECT
+        id,
+        name,
+        category,
+        price,
+        image_url AS imageUrl,
+        description,
+        size,
+        color,
+        stock,
+        vendor_id AS vendorId,
+        vendor_name AS vendorName,
+        published,
+        created_at AS createdAt,
+        updated_at AS updatedAt
+      FROM garments
+      WHERE id IN (${placeholders})
+      ORDER BY category ASC, name ASC`,
+      ...ids,
+    );
+  }
+
   async getByIdForVendor(id: string, vendorId: string): Promise<GarmentRow | null> {
     const database = await this.database();
     return database.getFirstAsync<GarmentRow>(
@@ -230,20 +260,38 @@ export class GarmentDao {
   }
 
   async listCategories(): Promise<string[]> {
-    const garments = await this.list();
-    const categories = Array.from(new Set(garments.map((garment) => garment.category)));
+    const database = await this.database();
+    const rows = await database.getAllAsync<{ category: string }>(
+      `SELECT DISTINCT category
+       FROM garments
+       ORDER BY category ASC`,
+    );
+    const categories = rows.map((row) => row.category);
     return ['Todas', ...categories];
   }
 
   async listPublishedCategories(): Promise<string[]> {
-    const garments = await this.listPublished();
-    const categories = Array.from(new Set(garments.map((garment) => garment.category)));
+    const database = await this.database();
+    const rows = await database.getAllAsync<{ category: string }>(
+      `SELECT DISTINCT category
+       FROM garments
+       WHERE published = 1
+       ORDER BY category ASC`,
+    );
+    const categories = rows.map((row) => row.category);
     return ['Todas', ...categories];
   }
 
   async listCategoriesByVendorId(vendorId: string): Promise<string[]> {
-    const garments = await this.listByVendorId(vendorId);
-    const categories = Array.from(new Set(garments.map((garment) => garment.category)));
+    const database = await this.database();
+    const rows = await database.getAllAsync<{ category: string }>(
+      `SELECT DISTINCT category
+       FROM garments
+       WHERE vendor_id = ?
+       ORDER BY category ASC`,
+      vendorId,
+    );
+    const categories = rows.map((row) => row.category);
     return ['Todas', ...categories];
   }
 
@@ -335,5 +383,67 @@ export class GarmentDao {
     }
 
     await this.create(garment);
+  }
+
+  async upsertMany(garments: GarmentRow[]): Promise<void> {
+    if (garments.length === 0) {
+      return;
+    }
+
+    const database = await this.database();
+    await database.execAsync('BEGIN');
+    try {
+      for (const garment of garments) {
+        await database.runAsync(
+          `INSERT INTO garments (
+            id,
+            name,
+            category,
+            price,
+            image_url,
+            description,
+            size,
+            color,
+            stock,
+            vendor_id,
+            vendor_name,
+            published,
+            created_at,
+            updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            name = excluded.name,
+            category = excluded.category,
+            price = excluded.price,
+            image_url = excluded.image_url,
+            description = excluded.description,
+            size = excluded.size,
+            color = excluded.color,
+            stock = excluded.stock,
+            vendor_id = excluded.vendor_id,
+            vendor_name = excluded.vendor_name,
+            published = excluded.published,
+            updated_at = excluded.updated_at`,
+          garment.id,
+          garment.name,
+          garment.category,
+          garment.price,
+          garment.imageUrl,
+          garment.description,
+          garment.size,
+          garment.color,
+          garment.stock,
+          garment.vendorId,
+          garment.vendorName,
+          garment.published,
+          garment.createdAt,
+          garment.updatedAt,
+        );
+      }
+      await database.execAsync('COMMIT');
+    } catch (error) {
+      await database.execAsync('ROLLBACK');
+      throw error;
+    }
   }
 }

@@ -24,6 +24,8 @@ type Props = {
   initialMessage: string;
   initialPhone?: string | null;
   imageUrl?: string;
+  phoneHint?: string;
+  phoneLabel?: string;
   title: string;
 };
 
@@ -33,6 +35,8 @@ export function WhatsAppEditorModal({
   initialMessage,
   initialPhone,
   imageUrl,
+  phoneHint = 'Incluye código de país sin + (Colombia: 57...)',
+  phoneLabel = 'Teléfono del vendedor',
   title,
 }: Props) {
   const [message, setMessage] = useState(initialMessage);
@@ -124,7 +128,7 @@ export function WhatsAppEditorModal({
                 />
 
                 <Text style={styles.fieldLabel}>
-                  Teléfono del vendedor{' '}
+                  {phoneLabel}{' '}
                   <Text style={styles.optional}>(opcional)</Text>
                 </Text>
                 <TextInput
@@ -138,7 +142,7 @@ export function WhatsAppEditorModal({
                   maxLength={15}
                 />
                 <Text style={styles.phoneHint}>
-                  Incluye código de país sin + (Colombia: 57…)
+                  {phoneHint}
                 </Text>
               </>
             ) : (

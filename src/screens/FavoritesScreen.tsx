@@ -53,6 +53,9 @@ export function FavoritesScreen({ navigation }: Props) {
   const [garments, setGarments] = useState<FavoriteGarment[]>([]);
   const [looks, setLooks] = useState<FavoriteLook[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedGarmentIds, setSelectedGarmentIds] = useState<string[]>([]);
+  const selectedGarmentIdSet = useMemo(() => new Set(selectedGarmentIds), [selectedGarmentIds]);
 
   const loadFavorites = useCallback(async () => {
     const userId = auth.user?.id;
@@ -66,49 +69,72 @@ export function FavoritesScreen({ navigation }: Props) {
 
     const garmentFavs = rows.filter((row) => row.entityType === 'garment');
     const lookFavs = rows.filter((row) => row.entityType === 'look');
+    const garmentFavoriteIds = garmentFavs.map((favorite) => favorite.entityId);
+    const lookFavoriteIds = lookFavs.map((favorite) => favorite.entityId);
 
     const [garmentResults, lookResults] = await Promise.all([
-      Promise.all(garmentFavs.map((favorite) => garmentDao.getById(favorite.entityId))),
-      Promise.all(lookFavs.map((favorite) => lookDao.getByIdForUser(favorite.entityId, userId))),
+      garmentDao.listByIds(garmentFavoriteIds),
+      lookDao.listByIdsForUser(lookFavoriteIds, userId),
     ]);
+    const garmentById = new Map(garmentResults.map((garment) => [garment.id, garment]));
+    const lookById = new Map(lookResults.map((look) => [look.id, look]));
 
-    setGarments(
-      garmentResults
-        .filter((garment): garment is NonNullable<typeof garment> => {
-          if (!garment) {
-            return false;
-          }
+    const visibleGarments = garmentFavoriteIds.reduce<FavoriteGarment[]>((acc, id) => {
+      const garment = garmentById.get(id);
+      if (!garment || (auth.user?.role === 'user' && garment.published !== 1)) {
+        return acc;
+      }
 
-          return auth.user?.role !== 'user' || garment.published === 1;
-        })
-        .map((garment) => ({
+      acc.push({
           id: garment.id,
           name: garment.name,
           category: garment.category,
           imageUrl: garment.imageUrl,
           price: garment.price,
-        })),
+      });
+      return acc;
+    }, []);
+
+    setGarments(visibleGarments);
+    const visibleGarmentIds = new Set(visibleGarments.map((garment) => garment.id));
+    setSelectedGarmentIds((current) =>
+      current.filter((id) => visibleGarmentIds.has(id)),
     );
 
-    const lookCards = await Promise.all(
-      lookResults
-        .filter((look): look is NonNullable<typeof look> => Boolean(look))
-        .map(async (look) => {
-          const items = await lookItemDao.listByLookId(look.id);
-          let coverImage: string | undefined;
-          if (items[0]) {
-            const garment = await garmentDao.getById(items[0].garmentId);
-            coverImage = garment?.imageUrl;
-          }
-          return {
-            id: look.id,
-            name: look.name,
-            description: look.description,
-            itemCount: items.length,
-            coverImage,
-          };
-        }),
+    const visibleLooks = lookFavoriteIds
+      .map((id) => lookById.get(id))
+      .filter((look): look is NonNullable<typeof look> => Boolean(look));
+    const lookIds = visibleLooks.map((look) => look.id);
+    const lookItems = await lookItemDao.listByLookIds(lookIds);
+    const itemsByLookId = new Map<string, typeof lookItems>();
+    const firstItemByLookId = new Map<string, (typeof lookItems)[number]>();
+
+    for (const item of lookItems) {
+      const current = itemsByLookId.get(item.lookId) ?? [];
+      current.push(item);
+      itemsByLookId.set(item.lookId, current);
+      if (!firstItemByLookId.has(item.lookId)) {
+        firstItemByLookId.set(item.lookId, item);
+      }
+    }
+
+    const coverGarmentIds = Array.from(
+      new Set(Array.from(firstItemByLookId.values()).map((item) => item.garmentId)),
     );
+    const coverGarments = await garmentDao.listByIds(coverGarmentIds);
+    const coverGarmentById = new Map(coverGarments.map((garment) => [garment.id, garment]));
+    const lookCards = visibleLooks.map((look) => {
+      const items = itemsByLookId.get(look.id) ?? [];
+      const firstItem = firstItemByLookId.get(look.id);
+      return {
+        id: look.id,
+        name: look.name,
+        description: look.description,
+        itemCount: items.length,
+        coverImage: firstItem ? coverGarmentById.get(firstItem.garmentId)?.imageUrl : undefined,
+      };
+    });
+
     setLooks(lookCards);
   }, [auth.user?.id, auth.user?.role, favoriteDao, garmentDao, lookDao, lookItemDao]);
 
@@ -121,6 +147,7 @@ export function FavoritesScreen({ navigation }: Props) {
 
       await favoriteDao.deleteByUserEntity(userId, 'garment', garmentId);
       setGarments((prev) => prev.filter((garment) => garment.id !== garmentId));
+      setSelectedGarmentIds((prev) => prev.filter((id) => id !== garmentId));
     },
     [auth.user?.id, favoriteDao],
   );
@@ -150,20 +177,69 @@ export function FavoritesScreen({ navigation }: Props) {
     }, [loadFavorites]),
   );
 
+  const toggleGarmentSelection = useCallback((garmentId: string) => {
+    setSelectedGarmentIds((current) =>
+      current.includes(garmentId)
+        ? current.filter((id) => id !== garmentId)
+        : [...current, garmentId],
+    );
+  }, []);
+
+  const startSelection = useCallback(() => {
+    setActiveTab('prendas');
+    setSelectionMode(true);
+    setSelectedGarmentIds([]);
+  }, []);
+
+  const cancelSelection = useCallback(() => {
+    setSelectionMode(false);
+    setSelectedGarmentIds([]);
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedGarmentIds((current) =>
+      current.length === garments.length ? [] : garments.map((garment) => garment.id),
+    );
+  }, [garments]);
+
+  const continueSelection = useCallback(() => {
+    if (!selectedGarmentIds.length) return;
+    setSelectionMode(false);
+    navigation.navigate('CreateLookPreview', { garmentIds: selectedGarmentIds });
+  }, [navigation, selectedGarmentIds]);
+
   const renderGarment = ({ item }: { item: FavoriteGarment }) => (
     <Pressable
-      style={styles.card}
-      onPress={() => navigation.navigate('GarmentDetail', { id: item.id })}
+      style={[styles.card, selectionMode && selectedGarmentIdSet.has(item.id) && styles.cardSelected]}
+      onPress={() =>
+        selectionMode
+          ? toggleGarmentSelection(item.id)
+          : navigation.navigate('GarmentDetail', { id: item.id })
+      }
     >
+      {selectionMode && (
+        <View
+          style={[
+            styles.checkboxBadge,
+            selectedGarmentIdSet.has(item.id) && styles.checkboxBadgeActive,
+          ]}
+        >
+          <Text style={styles.checkboxText}>
+            {selectedGarmentIdSet.has(item.id) ? 'OK' : ''}
+          </Text>
+        </View>
+      )}
       <CachedImage uri={item.imageUrl} style={styles.cardImage} />
       <View style={styles.cardBody}>
         <Text style={styles.category}>{item.category}</Text>
         <Text style={styles.cardTitle}>{item.name}</Text>
         <Text style={styles.price}>{formatCOP(item.price)}</Text>
       </View>
-      <Pressable style={styles.removeButton} onPress={() => removeGarmentFavorite(item.id)}>
-        <Text style={styles.removeButtonText}>Quitar</Text>
-      </Pressable>
+      {!selectionMode && (
+        <Pressable style={styles.removeButton} onPress={() => removeGarmentFavorite(item.id)}>
+          <Text style={styles.removeButtonText}>Quitar</Text>
+        </Pressable>
+      )}
     </Pressable>
   );
 
@@ -199,8 +275,8 @@ export function FavoritesScreen({ navigation }: Props) {
       <OfflineBanner />
       <View style={styles.header}>
         <Text style={styles.brand}>ATELIER</Text>
-        <Pressable onPress={() => navigation.goBack()}>
-          <Text style={styles.backLink}>Volver</Text>
+        <Pressable onPress={selectionMode ? cancelSelection : () => navigation.goBack()}>
+          <Text style={styles.backLink}>{selectionMode ? 'Cancelar' : 'Volver'}</Text>
         </Pressable>
       </View>
 
@@ -211,7 +287,12 @@ export function FavoritesScreen({ navigation }: Props) {
           <Pressable
             key={tab}
             style={[styles.tab, activeTab === tab && styles.tabActive]}
-            onPress={() => setActiveTab(tab)}
+            onPress={() => {
+              if (selectionMode && tab !== 'prendas') {
+                cancelSelection();
+              }
+              setActiveTab(tab);
+            }}
           >
             <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
               {tab === 'prendas' ? `Productos (${garments.length})` : `Looks (${looks.length})`}
@@ -220,12 +301,41 @@ export function FavoritesScreen({ navigation }: Props) {
         ))}
       </View>
 
+      {isGarmentTab && garments.length > 0 && (
+        <View style={styles.lookActionRow}>
+          {selectionMode ? (
+            <>
+              <Pressable style={styles.secondaryActionButton} onPress={toggleSelectAll}>
+                <Text style={styles.secondaryActionText}>
+                  {selectedGarmentIds.length === garments.length ? 'Limpiar' : 'Todos'}
+                </Text>
+              </Pressable>
+              <Text style={styles.selectionHint}>
+                {selectedGarmentIds.length} de {garments.length} seleccionados
+              </Text>
+            </>
+          ) : (
+            <Pressable style={styles.createLookButton} onPress={startSelection}>
+              <Text style={styles.createLookButtonText}>Crear look con favoritos</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+
       {isGarmentTab ? (
         <FlatList
           data={garments}
           keyExtractor={(item) => item.id}
           renderItem={renderGarment}
-          contentContainerStyle={styles.listContent}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={7}
+          updateCellsBatchingPeriod={50}
+          removeClippedSubviews
+          contentContainerStyle={[
+            styles.listContent,
+            selectionMode && styles.listContentWithSelectionBar,
+          ]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
@@ -238,6 +348,11 @@ export function FavoritesScreen({ navigation }: Props) {
           data={looks}
           keyExtractor={(item) => item.id}
           renderItem={renderLook}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={7}
+          updateCellsBatchingPeriod={50}
+          removeClippedSubviews
           contentContainerStyle={styles.listContent}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           ListEmptyComponent={
@@ -246,6 +361,23 @@ export function FavoritesScreen({ navigation }: Props) {
             </View>
           }
         />
+      )}
+
+      {selectionMode && (
+        <View style={styles.selectionBar}>
+          <Text style={styles.selectionBarText}>
+            {selectedGarmentIds.length === 0
+              ? 'Elige prendas favoritas para tu look'
+              : `${selectedGarmentIds.length} prenda${selectedGarmentIds.length !== 1 ? 's' : ''} seleccionada${selectedGarmentIds.length !== 1 ? 's' : ''}`}
+          </Text>
+          <Pressable
+            style={[styles.continueButton, !selectedGarmentIds.length && styles.continueButtonDisabled]}
+            onPress={continueSelection}
+            disabled={!selectedGarmentIds.length}
+          >
+            <Text style={styles.continueButtonText}>Continuar</Text>
+          </Pressable>
+        </View>
       )}
     </SafeAreaView>
   );
@@ -288,10 +420,58 @@ const styles = StyleSheet.create({
   tabActive: { backgroundColor: colors.primary },
   tabText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, letterSpacing: 0.3 },
   tabTextActive: { color: '#0C0C0E', fontWeight: '800' },
+  lookActionRow: {
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.md,
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  createLookButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: radius.round,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.gold,
+  },
+  createLookButtonText: {
+    color: '#0C0C0E',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  secondaryActionButton: {
+    height: 44,
+    minWidth: 92,
+    borderRadius: radius.round,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: 'rgba(201,168,76,0.10)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  secondaryActionText: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  selectionHint: {
+    flex: 1,
+    color: colors.textSecondary,
+    fontSize: 13,
+    textAlign: 'right',
+  },
   listContent: {
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.xl,
     gap: spacing.sm,
+  },
+  listContentWithSelectionBar: {
+    paddingBottom: 112,
   },
   emptyContainer: {
     paddingTop: spacing.xl,
@@ -305,6 +485,34 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     overflow: 'hidden',
     ...shadows.card,
+  },
+  cardSelected: {
+    borderColor: colors.primary,
+    borderWidth: 1.5,
+  },
+  checkboxBadge: {
+    position: 'absolute',
+    zIndex: 2,
+    top: spacing.sm,
+    right: spacing.sm,
+    width: 30,
+    height: 30,
+    borderRadius: radius.round,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.85)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxBadgeActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  checkboxText: {
+    color: '#0C0C0E',
+    fontSize: 9,
+    fontWeight: '800',
+    lineHeight: 12,
   },
   cardImage: { width: '100%', height: 220 },
   cardBody: { padding: spacing.md, gap: 3 },
@@ -354,5 +562,42 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     textTransform: 'uppercase',
     marginTop: 4,
+  },
+  selectionBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    minHeight: 76,
+    borderTopWidth: 0.5,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  selectionBarText: {
+    flex: 1,
+    color: colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  continueButton: {
+    height: 44,
+    borderRadius: radius.round,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  continueButtonDisabled: {
+    backgroundColor: colors.border,
+  },
+  continueButtonText: {
+    color: '#0C0C0E',
+    fontSize: 14,
+    fontWeight: '800',
   },
 });

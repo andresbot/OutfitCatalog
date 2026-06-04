@@ -26,12 +26,18 @@ import { DI_TOKENS } from '../core/di/injectionContainer';
 import { UpdateLookUseCase } from '../features/look/domain/usecases/UpdateLookUseCase';
 import { DeleteLookUseCase } from '../features/look/domain/usecases/DeleteLookUseCase';
 import {
+  buildPersonalLookMessage,
   buildShareGroups,
   buildWhatsAppMessage,
   openWhatsApp,
   VendorShareGroup,
 } from '../core/services/lookShareService';
 import { WhatsAppEditorModal } from '../components/WhatsAppEditorModal';
+import { getUserPhone } from '../auth/firebaseUsers';
+import {
+  createPurchaseRequest,
+  garmentToRequestItem,
+} from '../core/services/purchaseRequestService';
 import { formatCOP } from '../features/garment/presentation/utils/formatCOP';
 import { colors, radius, shadows, spacing } from '../theme';
 import { RootStackParamList } from '../types';
@@ -65,6 +71,7 @@ export function LookDetailScreen({ navigation, route }: Props) {
   const [garmentItems, setGarmentItems] = useState<GarmentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [requestingLook, setRequestingLook] = useState(false);
   const [error, setError] = useState('');
 
   // Share state
@@ -76,6 +83,9 @@ export function LookDetailScreen({ navigation, route }: Props) {
   // Editor de mensaje WhatsApp (US-14)
   const [editorVisible, setEditorVisible] = useState(false);
   const [editorGroup, setEditorGroup] = useState<VendorShareGroup | null>(null);
+  const [selfEditorVisible, setSelfEditorVisible] = useState(false);
+  const [selfMessage, setSelfMessage] = useState('');
+  const [selfPhone, setSelfPhone] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -188,6 +198,114 @@ export function LookDetailScreen({ navigation, route }: Props) {
     setLoadingShare(false);
   }, [garmentItems]);
 
+  const sendShareGroups = useCallback(async (groups: VendorShareGroup[]) => {
+    if (groups.length === 0) {
+      Alert.alert(
+        'Sin vendedores',
+        'No hay vendedores para contactar en este look.',
+      );
+      return;
+    }
+
+    const send = async (index: number): Promise<void> => {
+      if (index >= groups.length) {
+        setShareModalVisible(false);
+        Alert.alert(
+          'Listo',
+          `Se abrieron mensajes para ${groups.length} vendedor${groups.length > 1 ? 'es' : ''}.`,
+        );
+        return;
+      }
+
+      const group = groups[index];
+      const message = buildWhatsAppMessage(name || look?.name || '', group);
+      await openWhatsApp(group.vendorPhone, message);
+
+      if (index < groups.length - 1) {
+        Alert.alert(
+          `${index + 1} de ${groups.length} abierto`,
+          `Continuar con ${groups[index + 1].vendorName}?`,
+          [
+            { text: 'Continuar', onPress: () => { void send(index + 1); } },
+            { text: 'Detener', style: 'cancel' },
+          ],
+        );
+        return;
+      }
+
+      await send(index + 1);
+    };
+
+    await send(0);
+  }, [look?.name, name]);
+
+  const handleRequestLook = useCallback(async () => {
+    if (!look || auth.user?.role !== 'user' || !auth.user?.id) {
+      Alert.alert('Solo clientes', 'Inicia sesion como cliente para solicitar looks.');
+      return;
+    }
+    if (garmentItems.length === 0) {
+      Alert.alert('Sin prendas', 'Agrega prendas al look antes de solicitarlo.');
+      return;
+    }
+
+    const groups = new Map<string, { vendorName: string; garments: GarmentRow[] }>();
+    for (const item of garmentItems) {
+      const current = groups.get(item.garment.vendorId);
+      if (current) {
+        current.garments.push(item.garment);
+      } else {
+        groups.set(item.garment.vendorId, {
+          vendorName: item.garment.vendorName,
+          garments: [item.garment],
+        });
+      }
+    }
+
+    setRequestingLook(true);
+    try {
+      await Promise.all(
+        Array.from(groups.entries()).map(([vendorId, group]) =>
+          createPurchaseRequest({
+            buyerId: auth.user!.id,
+            buyerName: auth.user!.name,
+            buyerEmail: auth.user!.email,
+            buyerPhone: auth.user!.phone,
+            vendorId,
+            vendorName: group.vendorName,
+            source: 'look',
+            sourceId: look.id,
+            sourceName: name || look.name,
+            items: group.garments.map(garmentToRequestItem),
+          }),
+        ),
+      );
+      Alert.alert(
+        'Solicitud creada',
+        groups.size === 1
+          ? 'El vendedor ya puede ver tu solicitud.'
+          : `Se crearon ${groups.size} solicitudes, una por vendedor.`,
+        [
+          { text: 'Ver solicitudes', onPress: () => navigation.navigate('PurchaseRequests', { mode: 'buyer' }) },
+          {
+            text: 'Contactar vendedores',
+            onPress: () => {
+              void (async () => {
+                const groupsToContact = await buildShareGroups(garmentItems.map((g) => g.garment));
+                await sendShareGroups(groupsToContact);
+              })();
+            },
+          },
+          { text: 'Cerrar', style: 'cancel' },
+        ],
+      );
+    } catch {
+      Alert.alert('Error', 'No se pudo crear la solicitud del look.');
+    } finally {
+      setRequestingLook(false);
+    }
+  }, [auth.user, garmentItems, look, name, navigation, sendShareGroups]);
+
   const handleContactVendor = useCallback(
     (group: VendorShareGroup) => {
       setOpeningWhatsApp(group.vendorId);
@@ -199,50 +317,37 @@ export function LookDetailScreen({ navigation, route }: Props) {
     [],
   );
 
-  const handleSendToAll = useCallback(async () => {
-    const withPhone = shareGroups.filter((g) => g.vendorPhone);
+  const handleSendToSelf = useCallback(async () => {
+    if (garmentItems.length === 0) {
+      Alert.alert('Sin prendas', 'Agrega prendas al look antes de compartir.');
+      return;
+    }
 
-    if (withPhone.length === 0) {
+    const cachedPhone = auth.user?.phone?.trim();
+    const currentPhone = cachedPhone || (auth.user?.id ? await getUserPhone(auth.user.id) : null);
+
+    if (!currentPhone) {
       Alert.alert(
-        'Sin números registrados',
-        'Ningún vendedor de este look tiene número de WhatsApp. Usa "Contactar" en cada tarjeta para escribirles manualmente.',
+        'Telefono no registrado',
+        'Registra tu numero en tu perfil para enviarte este look por WhatsApp.',
       );
       return;
     }
 
-    const send = async (index: number): Promise<void> => {
-      if (index >= withPhone.length) {
-        setShareModalVisible(false);
-        const skipped = shareGroups.length - withPhone.length;
-        if (skipped > 0) {
-          Alert.alert(
-            '✅ Listo',
-            `Mensajes enviados a ${withPhone.length} vendedor${withPhone.length > 1 ? 'es' : ''}.\n${skipped} sin número omitido${skipped > 1 ? 's' : ''}.`,
-          );
-        }
-        return;
-      }
+    setSelfPhone(currentPhone);
+    setSelfMessage(
+      buildPersonalLookMessage(
+        name || look?.name || '',
+        garmentItems.map((item) => item.garment),
+      ),
+    );
+    setShareModalVisible(false);
+    setSelfEditorVisible(true);
+  }, [auth.user?.id, auth.user?.phone, garmentItems, look?.name, name]);
 
-      const group = withPhone[index];
-      const message = buildWhatsAppMessage(name || look?.name || '', group);
-      await openWhatsApp(group.vendorPhone, message);
-
-      if (index < withPhone.length - 1) {
-        Alert.alert(
-          `${index + 1} de ${withPhone.length} enviado`,
-          `¿Continuar con ${withPhone[index + 1].vendorName}?`,
-          [
-            { text: 'Continuar →', onPress: () => send(index + 1) },
-            { text: 'Detener', style: 'cancel' },
-          ],
-        );
-      } else {
-        send(index + 1);
-      }
-    };
-
-    await send(0);
-  }, [shareGroups, name, look?.name]);
+  const handleSendToAll = useCallback(async () => {
+    await sendShareGroups(shareGroups);
+  }, [sendShareGroups, shareGroups]);
 
   if (loading) {
     return (
@@ -285,10 +390,16 @@ export function LookDetailScreen({ navigation, route }: Props) {
               Contacta directamente al vendedor de cada prenda.
             </Text>
 
-            {!loadingShare && shareGroups.some((g) => g.vendorPhone) && (
+            {auth.user?.role === 'user' && (
+              <Pressable style={styles.sendSelfBtn} onPress={handleSendToSelf}>
+                <Text style={styles.sendSelfBtnText}>Enviarme este look</Text>
+              </Pressable>
+            )}
+
+            {!loadingShare && shareGroups.length > 0 && (
               <Pressable style={styles.sendAllBtn} onPress={handleSendToAll}>
                 <Text style={styles.sendAllBtnText}>
-                  💬 Enviar a todos ({shareGroups.filter((g) => g.vendorPhone).length})
+                  Enviar a todos ({shareGroups.length})
                 </Text>
               </Pressable>
             )}
@@ -369,6 +480,20 @@ export function LookDetailScreen({ navigation, route }: Props) {
         />
       )}
 
+      <WhatsAppEditorModal
+        visible={selfEditorVisible}
+        onClose={() => {
+          setSelfEditorVisible(false);
+          setShareModalVisible(true);
+        }}
+        initialMessage={selfMessage}
+        initialPhone={selfPhone}
+        imageUrl={garmentItems[0]?.garment.imageUrl}
+        phoneLabel="Tu telefono"
+        phoneHint="Se usara tu numero registrado. Puedes editarlo antes de enviar."
+        title="Enviarme este look"
+      />
+
       <FlatList
         data={garmentItems}
         keyExtractor={(item) => item.lookItemId}
@@ -426,6 +551,19 @@ export function LookDetailScreen({ navigation, route }: Props) {
         ListFooterComponent={
           <View style={styles.footer}>
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            {auth.user?.role === 'user' && (
+              <Pressable
+                style={[styles.requestButton, requestingLook && styles.requestButtonDisabled]}
+                onPress={handleRequestLook}
+                disabled={requestingLook}
+              >
+                {requestingLook ? (
+                  <ActivityIndicator color="#0C0C0E" />
+                ) : (
+                  <Text style={styles.requestButtonText}>Solicitar / reservar look</Text>
+                )}
+              </Pressable>
+            )}
             <Pressable
               style={[styles.saveButton, saving && styles.saveButtonDisabled]}
               onPress={handleSave}
@@ -520,6 +658,23 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: spacing.md,
     lineHeight: 19,
+  },
+  sendSelfBtn: {
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    height: 48,
+    borderRadius: radius.round,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: 'rgba(201,168,76,0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendSelfBtnText: {
+    color: colors.primary,
+    fontWeight: '800',
+    fontSize: 14,
+    letterSpacing: 0.2,
   },
   sendAllBtn: {
     marginHorizontal: spacing.md,
@@ -694,6 +849,25 @@ const styles = StyleSheet.create({
   removeButtonText: { color: colors.error, fontWeight: '700', fontSize: 12 },
   footer: { marginTop: spacing.lg, gap: spacing.sm },
   errorText: { color: colors.error, fontWeight: '600', textAlign: 'center', fontSize: 13 },
+  requestButton: {
+    height: 52,
+    borderRadius: radius.round,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.gold,
+  },
+  requestButtonDisabled: {
+    backgroundColor: colors.border,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  requestButtonText: {
+    color: '#0C0C0E',
+    fontWeight: '800',
+    fontSize: 15,
+    letterSpacing: 0.4,
+  },
   saveButton: {
     height: 52,
     borderRadius: radius.round,

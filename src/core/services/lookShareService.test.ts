@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildGarmentShareMessage } from './lookShareService';
+import { buildGarmentShareMessage, buildPersonalLookMessage } from './lookShareService';
 
 const base = {
   name: 'Vestido Noir',
@@ -28,5 +28,26 @@ describe('buildGarmentShareMessage', () => {
     expect(msg).toContain('Así me vería con esta prenda');
     expect(msg).toContain('https://cloudinary.com/tryon-result.jpg');
     expect(msg).not.toContain('https://cloudinary.com/garment.jpg');
+  });
+});
+
+describe('buildPersonalLookMessage', () => {
+  it('resume el look para enviarlo al numero personal del cliente', () => {
+    const msg = buildPersonalLookMessage('Look noche', [
+      {
+        name: base.name,
+        category: base.category,
+        price: base.price,
+        size: base.size,
+        color: base.color,
+        vendorName: base.vendorName,
+      },
+    ]);
+
+    expect(msg).toContain('Mi look en ATELIER');
+    expect(msg).toContain('Look noche');
+    expect(msg).toContain(base.name);
+    expect(msg).toContain(base.vendorName);
+    expect(msg).toContain('Total estimado');
   });
 });

@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { InteractionManager } from 'react-native';
 import { AuthUser, GoogleSignInResult, UserRole } from '../types';
 import {
   completeGoogleSignup as completeGoogleSignupFn,
@@ -9,6 +10,7 @@ import {
   signInWithGoogleWeb,
   signOutFirebase,
   toReadableFirebaseError,
+  warmUpFirebaseAuth,
 } from './firebaseAuth';
 
 type AuthContextValue = {
@@ -40,6 +42,20 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [lastError, setLastError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const task = InteractionManager.runAfterInteractions(() => {
+      timeoutId = setTimeout(() => {
+        void warmUpFirebaseAuth();
+      }, 1200);
+    });
+
+    return () => {
+      task.cancel();
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({

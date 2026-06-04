@@ -26,10 +26,9 @@ import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import { VendorProfileScreen } from './src/screens/VendorProfileScreen';
 import { GoogleRoleSelectScreen } from './src/screens/GoogleRoleSelectScreen';
 import { TryOnResultScreen } from './src/screens/TryOnResultScreen';
+import { PurchaseRequestsScreen } from './src/screens/PurchaseRequestsScreen';
 import { RootStackParamList } from './src/types';
-import { getIt } from './src/core/di/getIt';
-import { DI_TOKENS, initDependencies } from './src/core/di/injectionContainer';
-import { SyncGarmentsUseCase } from './src/features/garment/domain/usecases/SyncGarmentsUseCase';
+import { initDependencies } from './src/core/di/injectionContainer';
 import { NetworkProvider } from './src/context/NetworkContext';
 import { isOnboardingCompleted } from './src/core/services/onboardingStorage';
 
@@ -44,12 +43,6 @@ export default function App() {
     isOnboardingCompleted().then((done) => {
       setInitialRoute(done ? 'Login' : 'Onboarding');
     });
-  }, []);
-
-  useEffect(() => {
-    getIt.get<SyncGarmentsUseCase>(DI_TOKENS.syncGarmentsUseCase)
-      .execute()
-      .catch(() => {});
   }, []);
 
   if (!initialRoute) {
@@ -80,6 +73,7 @@ export default function App() {
             <Stack.Screen name="Looks" component={LooksScreenByRole} />
             <Stack.Screen name="LookDetail" component={LookDetailScreen} />
             <Stack.Screen name="CreateLookPreview" component={CreateLookPreviewScreen} />
+            <Stack.Screen name="PurchaseRequests" component={PurchaseRequestsScreen} />
             <Stack.Screen name="Favorites" component={FavoritesScreen} />
             <Stack.Screen name="InventoryManagement" component={InventoryManagementScreen} />
             <Stack.Screen name="AddEditGarment" component={AddEditGarmentScreen} />

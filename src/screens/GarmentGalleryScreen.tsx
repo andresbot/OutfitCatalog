@@ -41,6 +41,8 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const favoriteIdSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
+  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const { isConnected, justReconnected } = useNetwork();
   const {
     categories,
@@ -327,6 +329,11 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
         keyExtractor={(item) => item.id}
         numColumns={2}
         style={styles.list}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        updateCellsBatchingPeriod={50}
+        removeClippedSubviews
         contentContainerStyle={[
           styles.listContent,
           selectionMode && { paddingBottom: SELECTION_BAR_HEIGHT + spacing.md },
@@ -347,7 +354,7 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
           )
         }
         renderItem={({ item }) => {
-          const isSelected = selectedIds.includes(item.id);
+          const isSelected = selectedIdSet.has(item.id);
           return (
             <Pressable
               style={[styles.card, selectionMode && isSelected && styles.cardSelected]}
@@ -364,7 +371,7 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
               ) : (
                 <View style={styles.favoriteButton}>
                   <HeartButton
-                    isFavorite={favoriteIds.includes(item.id)}
+                    isFavorite={favoriteIdSet.has(item.id)}
                     onToggle={() => toggleFavorite(item.id)}
                     size={18}
                   />

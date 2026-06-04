@@ -42,7 +42,7 @@ export class GarmentRepositoryImpl implements GarmentRepository {
     }
 
     try {
-      const remoteGarments = await this.remoteDataSource.fetchGarments();
+      const remoteGarments = await this.remoteDataSource.fetchPublishedGarments();
       await this.localDataSource.upsertMany(remoteGarments);
       const syncInfo: GarmentSyncInfo = {
         source: 'remote',

@@ -238,9 +238,11 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: spacing.xs,
   },
-  statsRow: { flexDirection: 'row', gap: spacing.sm },
+  statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   statCard: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '30%',
+    minWidth: 96,
     borderWidth: 0.5,
     borderColor: colors.border,
     borderRadius: radius.lg,

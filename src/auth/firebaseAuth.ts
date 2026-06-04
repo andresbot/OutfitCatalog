@@ -207,6 +207,10 @@ async function getFirebaseContext(): Promise<FirebaseContext | null> {
   }
 }
 
+export async function warmUpFirebaseAuth(): Promise<void> {
+  await getFirebaseContext();
+}
+
 async function getRoleProfile(ctx: FirebaseContext, uid: string): Promise<{
   role: UserRole;
   name: string;

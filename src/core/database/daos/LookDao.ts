@@ -77,6 +77,31 @@ export class LookDao {
     );
   }
 
+  async listByIdsForUser(ids: string[], userId: string): Promise<LookRow[]> {
+    if (ids.length === 0) {
+      return [];
+    }
+
+    const database = await this.database();
+    const placeholders = ids.map(() => '?').join(', ');
+    return database.getAllAsync<LookRow>(
+      `SELECT
+        id,
+        user_id AS userId,
+        name,
+        description,
+        cover_image_url AS coverImageUrl,
+        created_at AS createdAt,
+        updated_at AS updatedAt
+      FROM looks
+      WHERE user_id = ?
+        AND id IN (${placeholders})
+      ORDER BY updated_at DESC, name ASC`,
+      userId,
+      ...ids,
+    );
+  }
+
   async create(look: LookRow): Promise<void> {
     const database = await this.database();
     await database.runAsync(

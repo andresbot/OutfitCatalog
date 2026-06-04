@@ -63,12 +63,12 @@ export interface LookRemoteDataSource {
 export class LookRemoteDataSourceImpl implements LookRemoteDataSource {
   private configured = false;
   private db: any = null;
-
-  constructor() {
-    this.initialize();
-  }
+  private initialized = false;
 
   private initialize(): void {
+    if (this.initialized) return;
+    this.initialized = true;
+
     if (!tryLoadFirebase()) { this.configured = false; return; }
     const config = readFirebaseConfig();
     if (!config) { this.configured = false; return; }
@@ -83,7 +83,10 @@ export class LookRemoteDataSourceImpl implements LookRemoteDataSource {
     }
   }
 
-  isConfigured(): boolean { return this.configured && this.db !== null; }
+  isConfigured(): boolean {
+    this.initialize();
+    return this.configured && this.db !== null;
+  }
 
   async upsertLook(look: LookRow, garmentIds: string[]): Promise<void> {
     if (!this.isConfigured() || !firebaseCache) return;

@@ -11,6 +11,10 @@ import {
 import { buildGarmentShareMessage } from '../core/services/lookShareService';
 import { getVendorPhone } from '../auth/firebaseUsers';
 import { WhatsAppEditorModal } from '../components/WhatsAppEditorModal';
+import {
+  createPurchaseRequest,
+  garmentToRequestItem,
+} from '../core/services/purchaseRequestService';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -40,6 +44,7 @@ export function GarmentDetailScreen({ route, navigation }: Props) {
   );
   const [isFavorite, setIsFavorite] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [requesting, setRequesting] = useState(false);
 
   // Editor de mensaje WhatsApp — US-14
   const [editorVisible, setEditorVisible] = useState(false);
@@ -133,6 +138,42 @@ export function GarmentDetailScreen({ route, navigation }: Props) {
     setSharing(false);
     setEditorVisible(true);
   }, [garment]);
+
+  const handlePurchaseRequest = useCallback(async () => {
+    if (!garment) return;
+    if (auth.user?.role !== 'user' || !auth.user?.id) {
+      Alert.alert('Solo clientes', 'Inicia sesion como cliente para solicitar prendas.');
+      return;
+    }
+    if (garment.stock === 0) {
+      Alert.alert('Agotado', 'Esta prenda no esta disponible para reserva.');
+      return;
+    }
+
+    setRequesting(true);
+    try {
+      const request = await createPurchaseRequest({
+        buyerId: auth.user.id,
+        buyerName: auth.user.name,
+        buyerEmail: auth.user.email,
+        buyerPhone: auth.user.phone,
+        vendorId: garment.vendorId,
+        vendorName: garment.vendorName,
+        source: 'garment',
+        sourceId: garment.id,
+        sourceName: garment.name,
+        items: [garmentToRequestItem(garment)],
+      });
+      const phone = await getVendorPhone(garment.vendorId);
+      setEditorPhone(phone);
+      setEditorMessage(request.message);
+      setEditorVisible(true);
+    } catch {
+      Alert.alert('Error', 'No se pudo crear la solicitud.');
+    } finally {
+      setRequesting(false);
+    }
+  }, [auth.user, garment]);
 
   useFocusEffect(
     useCallback(() => {
@@ -242,6 +283,22 @@ export function GarmentDetailScreen({ route, navigation }: Props) {
             <Text style={styles.whatsappBtnText}>Consultar por WhatsApp</Text>
           )}
         </Pressable>
+
+        {auth.user?.role === 'user' && (
+          <Pressable
+            style={[styles.requestBtn, (requesting || garment.stock === 0) && styles.requestBtnDisabled]}
+            onPress={handlePurchaseRequest}
+            disabled={requesting || garment.stock === 0}
+          >
+            {requesting ? (
+              <ActivityIndicator color="#0C0C0E" />
+            ) : (
+              <Text style={styles.requestBtnText}>
+                {garment.stock === 0 ? 'No disponible' : 'Solicitar / reservar'}
+              </Text>
+            )}
+          </Pressable>
+        )}
       </ScrollView>
 
       {/* Editor de mensaje WhatsApp — US-14 */}
@@ -388,6 +445,22 @@ const styles = StyleSheet.create({
   },
   whatsappBtnDisabled: { opacity: 0.6 },
   whatsappBtnText: { color: '#fff', fontWeight: '800', fontSize: 15, letterSpacing: 0.3 },
+  requestBtn: {
+    height: 54,
+    borderRadius: radius.round,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  requestBtnDisabled: {
+    backgroundColor: colors.border,
+  },
+  requestBtnText: {
+    color: '#0C0C0E',
+    fontWeight: '800',
+    fontSize: 15,
+    letterSpacing: 0.3,
+  },
   emptyWrap: {
     flex: 1,
     justifyContent: 'center',

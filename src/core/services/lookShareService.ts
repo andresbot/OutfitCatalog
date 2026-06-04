@@ -58,6 +58,41 @@ export function buildWhatsAppMessage(lookName: string, group: VendorShareGroup):
   return lines.join('\n');
 }
 
+type PersonalLookGarment = Pick<
+  GarmentRow,
+  'name' | 'price' | 'size' | 'color' | 'category' | 'vendorName'
+>;
+
+export function buildPersonalLookMessage(
+  lookName: string,
+  garments: PersonalLookGarment[],
+): string {
+  const total = garments.reduce((sum, garment) => sum + garment.price, 0);
+  const lines: string[] = ['*Mi look en ATELIER*', ''];
+
+  if (lookName.trim()) {
+    lines.push(`Look: _"${lookName}"_`);
+    lines.push('');
+  }
+
+  lines.push('Prendas guardadas en este look:');
+  lines.push('');
+
+  for (const garment of garments) {
+    lines.push(`- *${garment.name}*`);
+    lines.push(`  Vendedor: ${garment.vendorName}`);
+    lines.push(`  Categoria: ${garment.category}`);
+    lines.push(`  Talla: ${garment.size} · Color: ${garment.color}`);
+    lines.push(`  Precio: ${formatCOP(garment.price)}`);
+    lines.push('');
+  }
+
+  lines.push(`Total estimado: *${formatCOP(total)}*`);
+  lines.push('');
+  lines.push('_Enviado desde ATELIER_');
+  return lines.join('\n');
+}
+
 // ── Garment share ────────────────────────────────────────────────────────────
 
 type GarmentShareInput = {

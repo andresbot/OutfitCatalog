@@ -52,9 +52,7 @@ export class GarmentLocalDataSourceImpl implements GarmentLocalDataSource {
   }
 
   async upsertMany(garments: GarmentModel[]): Promise<void> {
-    for (const garment of garments) {
-      await this.upsertGarment(garment);
-    }
+    await this.garmentDao.upsertMany(garments.map(toGarmentRow));
   }
 
   async deleteGarment(id: string): Promise<void> {

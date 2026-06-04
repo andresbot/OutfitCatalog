@@ -25,7 +25,9 @@ let firebaseCache: {
   getApp: any;
   getApps: any;
   initializeApp: any;
+  query: any;
   setDoc: any;
+  where: any;
 } | null = null;
 
 function tryLoadFirebase() {
@@ -46,7 +48,9 @@ function tryLoadFirebase() {
       getApp: app.getApp,
       getApps: app.getApps,
       initializeApp: app.initializeApp,
+      query: firestore.query,
       setDoc: firestore.setDoc,
+      where: firestore.where,
     };
 
     return true;
@@ -142,6 +146,8 @@ function toFirestoreGarmentDocument(garment: GarmentModel): FirestoreGarmentDocu
 export interface GarmentRemoteDataSource {
   isConfigured(): boolean;
   fetchGarments(): Promise<GarmentModel[]>;
+  fetchPublishedGarments(): Promise<GarmentModel[]>;
+  fetchGarmentsByVendorId(vendorId: string): Promise<GarmentModel[]>;
   upsertGarment(garment: GarmentModel): Promise<void>;
   deleteGarment(id: string): Promise<void>;
 }
@@ -149,12 +155,14 @@ export interface GarmentRemoteDataSource {
 export class GarmentRemoteDataSourceImpl implements GarmentRemoteDataSource {
   private configured = false;
   private db: any = null;
-
-  constructor() {
-    this.initialize();
-  }
+  private initialized = false;
 
   private initialize(): void {
+    if (this.initialized) {
+      return;
+    }
+    this.initialized = true;
+
     if (!tryLoadFirebase()) {
       this.configured = false;
       return;
@@ -182,7 +190,20 @@ export class GarmentRemoteDataSourceImpl implements GarmentRemoteDataSource {
   }
 
   isConfigured(): boolean {
+    this.initialize();
     return this.configured && this.db !== null;
+  }
+
+  private async fetchFromQuery(queryRef: any): Promise<GarmentModel[]> {
+    if (!this.isConfigured() || !firebaseCache) {
+      return [];
+    }
+
+    const snapshot = await firebaseCache.getDocs(queryRef);
+
+    return snapshot.docs
+      .map((doc: any) => toGarmentModel(doc.id, doc.data() as FirestoreGarmentDocument))
+      .filter((garment: GarmentModel | null): garment is GarmentModel => garment !== null);
   }
 
   async fetchGarments(): Promise<GarmentModel[]> {
@@ -190,13 +211,33 @@ export class GarmentRemoteDataSourceImpl implements GarmentRemoteDataSource {
       return [];
     }
 
-    const snapshot = await firebaseCache.getDocs(
-      firebaseCache.collection(this.db, GARMENT_COLLECTION_NAME),
-    );
+    return this.fetchFromQuery(firebaseCache.collection(this.db, GARMENT_COLLECTION_NAME));
+  }
 
-    return snapshot.docs
-      .map((doc: any) => toGarmentModel(doc.id, doc.data() as FirestoreGarmentDocument))
-      .filter((garment: GarmentModel | null): garment is GarmentModel => garment !== null);
+  async fetchPublishedGarments(): Promise<GarmentModel[]> {
+    if (!this.isConfigured() || !firebaseCache) {
+      return [];
+    }
+
+    return this.fetchFromQuery(
+      firebaseCache.query(
+        firebaseCache.collection(this.db, GARMENT_COLLECTION_NAME),
+        firebaseCache.where('published', '==', true),
+      ),
+    );
+  }
+
+  async fetchGarmentsByVendorId(vendorId: string): Promise<GarmentModel[]> {
+    if (!this.isConfigured() || !firebaseCache) {
+      return [];
+    }
+
+    return this.fetchFromQuery(
+      firebaseCache.query(
+        firebaseCache.collection(this.db, GARMENT_COLLECTION_NAME),
+        firebaseCache.where('vendorId', '==', vendorId),
+      ),
+    );
   }
 
   async upsertGarment(garment: GarmentModel): Promise<void> {

@@ -10,6 +10,7 @@ import { SearchGarmentsUseCase } from '../../domain/usecases/SearchGarmentsUseCa
 import { SyncGarmentsUseCase } from '../../domain/usecases/SyncGarmentsUseCase';
 
 const SEARCH_DEBOUNCE_MS = 300;
+const AUTO_SYNC_STALE_MS = 5 * 60 * 1000;
 
 export type PriceRange = {
   label: string;
@@ -77,6 +78,15 @@ const INITIAL_SYNC_INFO: GarmentSyncInfo = {
   lastSyncedAt: null,
 };
 
+function shouldAutoSync(syncInfo: GarmentSyncInfo): boolean {
+  if (!syncInfo.lastSyncedAt) return true;
+
+  const lastSyncedAt = new Date(syncInfo.lastSyncedAt).getTime();
+  if (Number.isNaN(lastSyncedAt)) return true;
+
+  return Date.now() - lastSyncedAt > AUTO_SYNC_STALE_MS;
+}
+
 export function useGarmentGalleryViewModel() {
   const viewModel = useMemo(
     () =>
@@ -115,6 +125,10 @@ export function useGarmentGalleryViewModel() {
       loading: false,
       syncInfo,
     }));
+
+    if (!shouldAutoSync(syncInfo)) {
+      return;
+    }
 
     try {
       const newSyncInfo = await viewModel.syncGarments();

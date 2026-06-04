@@ -20,7 +20,12 @@ import { GarmentRow } from '../core/database/types';
 import { getIt } from '../core/di/getIt';
 import { DI_TOKENS } from '../core/di/injectionContainer';
 import { GarmentRemoteDataSource } from '../features/garment/data/datasources/GarmentRemoteDataSource';
+import { toGarmentRow } from '../features/garment/data/models/GarmentModel';
 import { formatCOP } from '../features/garment/presentation/utils/formatCOP';
+import {
+  listPurchaseRequestsForUser,
+  PurchaseRequest,
+} from '../core/services/purchaseRequestService';
 import { colors, radius, shadows, spacing } from '../theme';
 import { RootStackParamList } from '../types';
 
@@ -44,6 +49,7 @@ export function InventoryManagementScreen({ navigation }: Props) {
     [],
   );
   const [garments, setGarments] = useState<GarmentRow[]>([]);
+  const [requests, setRequests] = useState<PurchaseRequest[]>([]);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'low' | 'out'>('all');
   const [loading, setLoading] = useState(true);
@@ -53,6 +59,7 @@ export function InventoryManagementScreen({ navigation }: Props) {
     const vendorId = auth.user?.id;
     if (!vendorId || auth.user?.role !== 'vendor') {
       setGarments([]);
+      setRequests([]);
       setError('Debes iniciar sesion como vendedor para ver tu inventario.');
       setLoading(false);
       return;
@@ -61,14 +68,31 @@ export function InventoryManagementScreen({ navigation }: Props) {
     setLoading(true);
     setError('');
     try {
-      const rows = await garmentDao.listByVendorId(vendorId);
-      setGarments(rows);
+      let rows = await garmentDao.listByVendorId(vendorId);
+
+      if (garmentRemoteDataSource.isConfigured()) {
+        try {
+          const remoteRows = (await garmentRemoteDataSource.fetchGarmentsByVendorId(vendorId))
+            .map(toGarmentRow);
+          await garmentDao.upsertMany(remoteRows);
+          rows = remoteRows;
+        } catch (syncError) {
+          console.warn('Remote inventory refresh failed:', syncError);
+        }
+      }
+
+      const [finalRows, vendorRequests] = await Promise.all([
+        Promise.resolve(rows),
+        listPurchaseRequestsForUser(vendorId, 'vendor').catch(() => []),
+      ]);
+      setGarments(finalRows);
+      setRequests(vendorRequests);
     } catch {
       setError('No se pudo cargar tu inventario.');
     } finally {
       setLoading(false);
     }
-  }, [auth.user?.id, auth.user?.role, garmentDao]);
+  }, [auth.user?.id, auth.user?.role, garmentDao, garmentRemoteDataSource]);
 
   useFocusEffect(
     useCallback(() => {
@@ -97,10 +121,17 @@ export function InventoryManagementScreen({ navigation }: Props) {
 
   const stats = useMemo(() => {
     const total = garments.length;
+    const units = garments.reduce((sum, g) => sum + g.stock, 0);
     const low = garments.filter((g) => g.stock > 0 && g.stock <= LOW_STOCK_THRESHOLD).length;
     const out = garments.filter((g) => g.stock === 0).length;
-    return { total, low, out };
-  }, [garments]);
+    const reserved = requests
+      .filter((request) => request.status === 'reserved')
+      .reduce((sum, request) => sum + request.items.length, 0);
+    const sold = requests
+      .filter((request) => request.status === 'sold')
+      .reduce((sum, request) => sum + request.items.length, 0);
+    return { total, units, low, out, reserved, sold };
+  }, [garments, requests]);
 
   const handleDelete = useCallback(
     (garment: GarmentRow) => {
@@ -147,8 +178,12 @@ export function InventoryManagementScreen({ navigation }: Props) {
 
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
-          <Text style={styles.statLabel}>Total</Text>
+          <Text style={styles.statLabel}>Productos</Text>
           <Text style={styles.statValue}>{stats.total}</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statLabel}>Unidades</Text>
+          <Text style={styles.statValue}>{stats.units}</Text>
         </View>
         <View style={styles.statCard}>
           <Text style={styles.statLabel}>Stock bajo</Text>
@@ -157,6 +192,14 @@ export function InventoryManagementScreen({ navigation }: Props) {
         <View style={styles.statCard}>
           <Text style={styles.statLabel}>Agotadas</Text>
           <Text style={[styles.statValue, { color: colors.error }]}>{stats.out}</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statLabel}>Reservadas</Text>
+          <Text style={styles.statValue}>{stats.reserved}</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statLabel}>Vendidas</Text>
+          <Text style={styles.statValue}>{stats.sold}</Text>
         </View>
       </View>
 
@@ -203,6 +246,11 @@ export function InventoryManagementScreen({ navigation }: Props) {
         <FlatList
           data={filteredGarments}
           keyExtractor={(item) => item.id}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          updateCellsBatchingPeriod={50}
+          removeClippedSubviews
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <View style={styles.empty}>
@@ -291,12 +339,15 @@ const styles = StyleSheet.create({
   backLink: { color: colors.primary, fontWeight: '700', fontSize: 13 },
   statsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
     marginBottom: spacing.md,
   },
   statCard: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '30%',
+    minWidth: 96,
     borderWidth: 0.5,
     borderColor: colors.border,
     borderRadius: radius.lg,

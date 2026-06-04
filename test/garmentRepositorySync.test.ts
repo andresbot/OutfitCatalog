@@ -84,6 +84,16 @@ class FakeRemoteDataSource implements GarmentRemoteDataSource {
     return this.garments;
   }
 
+  async fetchPublishedGarments(): Promise<GarmentModel[]> {
+    const garments = await this.fetchGarments();
+    return garments.filter((garment) => garment.published);
+  }
+
+  async fetchGarmentsByVendorId(vendorId: string): Promise<GarmentModel[]> {
+    const garments = await this.fetchGarments();
+    return garments.filter((garment) => garment.vendorId === vendorId);
+  }
+
   async upsertGarment(garment: GarmentModel): Promise<void> {
     const index = this.garments.findIndex((current) => current.id === garment.id);
     if (index >= 0) {
@@ -128,6 +138,19 @@ describe('GarmentRepositoryImpl syncGarments', () => {
 
     expect(syncInfo.source).toBe('remote');
     expect(syncInfo.lastSyncedAt).not.toBeNull();
+    expect(garments).toHaveLength(1);
+    expect(garments[0].id).toBe('g1');
+  });
+
+  it('synchronizes only published garments from remote', async () => {
+    const local = new FakeLocalDataSource();
+    const unpublishedGarment = { ...SAMPLE_GARMENT, id: 'g2', published: false };
+    const remote = new FakeRemoteDataSource(true, [SAMPLE_GARMENT, unpublishedGarment]);
+    const repository = new GarmentRepositoryImpl(local, remote);
+
+    await repository.syncGarments();
+    const garments = await repository.getGarments();
+
     expect(garments).toHaveLength(1);
     expect(garments[0].id).toBe('g1');
   });

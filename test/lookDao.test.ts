@@ -19,6 +19,10 @@ describe('LookDao', () => {
 
     expect((await dao.getById('l-001'))?.name).toBe('Look oficina');
     expect((await dao.getByIdForUser('l-001', 'user-2'))).toBeNull();
+    expect((await dao.listByIdsForUser(['l-001', 'missing'], 'user-1')).map((look) => look.id)).toEqual([
+      'l-001',
+    ]);
+    expect(await dao.listByIdsForUser(['l-001'], 'user-2')).toEqual([]);
 
     await dao.update({
       id: 'l-001',
