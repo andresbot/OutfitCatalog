@@ -99,3 +99,85 @@ h1.hero-title { font-size: clamp(48px, 11vw, 132px); letter-spacing: 8px; margin
 
 /* reduced motion */
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+/* ── DEV STORY ──────────────────────────────────────────────────────────────── */
+.dev-phases { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-top: 22px; }
+@media (max-width: 900px) { .dev-phases { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .dev-phases { grid-template-columns: 1fr; } }
+.dev-phase { background: rgba(22,22,24,.65); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+.dev-phase .phase-num { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); margin-bottom: 6px; }
+.dev-phase h4 { margin: 0 0 6px; font-size: 13px; color: var(--ivory); }
+.dev-phase p { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+/* ── TECH STACK ──────────────────────────────────────────────────────────────── */
+.tech-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 20px; }
+@media (max-width: 900px) { .tech-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 500px) { .tech-grid { grid-template-columns: repeat(2, 1fr); } }
+.tech-item { background: rgba(22,22,24,.65); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; transition: border-color .2s, box-shadow .2s; }
+.tech-item:hover { border-color: var(--gold); box-shadow: 0 4px 24px rgba(201,168,76,.15); }
+.tech-item .tech-name { font-size: 13px; font-weight: 700; color: var(--ivory); letter-spacing: .3px; }
+.tech-item .tech-version { font-size: 10px; color: var(--gold); letter-spacing: 1px; margin: 2px 0 4px; }
+.tech-item .tech-role { font-size: 11px; color: var(--muted); line-height: 1.4; }
+.tech-item.cat-core   { border-color: rgba(201,168,76,.25); }
+.tech-item.cat-data   { border-color: rgba(82,168,130,.25); }
+.tech-item.cat-auth   { border-color: rgba(108,168,217,.25); }
+.tech-item.cat-build  { border-color: rgba(224,82,82,.25); }
+.tech-item.cat-quality{ border-color: rgba(82,168,130,.25); }
+.typewriter { overflow: hidden; white-space: nowrap; border-right: 2px solid var(--gold); width: 0; }
+.typewriter.done { border-right: none; width: auto; }
+
+/* ── PURCHASE FLOW (STATE MACHINE) ──────────────────────────────────────────── */
+.purchase-flow { display: flex; align-items: center; gap: 0; margin-top: 24px; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 8px; }
+.pstate { flex: 0 0 auto; background: rgba(22,22,24,.65); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; min-width: 120px; text-align: center; transition: border-color .3s, box-shadow .3s, transform .3s; }
+.pstate.active { transform: translateY(-4px); box-shadow: 0 8px 32px rgba(0,0,0,.4); }
+.pstate .state-dot { width: 10px; height: 10px; border-radius: 50%; margin: 0 auto 8px; transition: box-shadow .3s; }
+.pstate.active .state-dot { box-shadow: 0 0 0 4px rgba(255,255,255,.1); }
+.pstate h4 { margin: 0 0 4px; font-size: 13px; color: var(--ivory); }
+.pstate p { margin: 0; font-size: 11px; color: var(--muted); line-height: 1.4; }
+.pstate-arrow { flex: 0 0 28px; text-align: center; color: var(--dim); font-size: 18px; line-height: 1; }
+
+/* ── DATABASE SCHEMA ─────────────────────────────────────────────────────────── */
+.db-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 20px; }
+@media (max-width: 700px) { .db-cols { grid-template-columns: 1fr; } }
+.db-panel h4 { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin: 0 0 12px; }
+.db-panel.sqlite h4 { color: var(--gold); }
+.db-panel.firestore h4 { color: var(--blue); }
+.db-table { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; margin-bottom: 6px; background: rgba(22,22,24,.65); border: 1px solid var(--line); font-size: 12.5px; }
+.db-table code { font-family: 'JetBrains Mono', 'Fira Code', monospace; color: var(--gold); font-size: 12px; flex: 0 0 auto; }
+.db-panel.firestore .db-table code { color: var(--blue); }
+.db-table span { color: var(--muted); }
+
+/* ── SCALE & EVIDENCE ────────────────────────────────────────────────────────── */
+.scale-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 20px; }
+@media (max-width: 700px) { .scale-grid { grid-template-columns: 1fr; } }
+.scale-card { background: rgba(22,22,24,.65); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; }
+.scale-card .scale-num { font-size: 38px; font-weight: 800; color: var(--gold); line-height: 1; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+.scale-card .scale-label { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+.scale-card .scale-detail { font-size: 12px; color: var(--dim); margin-top: 8px; line-height: 1.5; }
+.evidence-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+.evidence-chip { display: flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 8px; background: rgba(22,22,24,.65); border: 1px solid var(--line); font-size: 12px; }
+.evidence-chip .chip-label { color: var(--muted); }
+.evidence-chip code { font-family: 'JetBrains Mono', 'Fira Code', monospace; color: var(--blue); font-size: 11px; }
+
+/* ── ANALYTICS EVENTS ────────────────────────────────────────────────────────── */
+.events-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.event-tag { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 11px; padding: 4px 10px; border-radius: 6px; background: rgba(108,168,217,.1); border: 1px solid rgba(108,168,217,.25); color: var(--blue); }
+
+/* ── SPLIT-TEXT ANIMATION ────────────────────────────────────────────────────── */
+.split-text .char { display: inline-block; }
+.split-line { overflow: hidden; }
+
+/* ── CURSOR TRAIL ────────────────────────────────────────────────────────────── */
+.cursor-trail { position: fixed; pointer-events: none; z-index: 9999; }
+.trail-dot { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: #C9A84C; transform: translate(-50%, -50%); }
+
+/* ── GLITCH ANIMATION ────────────────────────────────────────────────────────── */
+@keyframes glitch-h {
+  0%,100%{ clip-path: inset(0 0 100% 0); transform: translateX(0); }
+  20%    { clip-path: inset(20% 0 60% 0); transform: translateX(-3px); }
+  40%    { clip-path: inset(50% 0 30% 0); transform: translateX(3px); }
+  60%    { clip-path: inset(70% 0 10% 0); transform: translateX(-2px); }
+  80%    { clip-path: inset(10% 0 80% 0); transform: translateX(2px); }
+}
+.glitch-overlay { position: absolute; inset: 0; pointer-events: none; opacity: 0; }
+.glitch-overlay.active { animation: glitch-h 0.3s steps(1) forwards; opacity: .35; }
