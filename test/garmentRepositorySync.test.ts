@@ -52,6 +52,14 @@ class FakeLocalDataSource implements GarmentLocalDataSource {
     }
   }
 
+  async replacePublishedCache(garments: GarmentModel[]): Promise<void> {
+    const remoteIds = new Set(garments.map((garment) => garment.id));
+    this.garments = this.garments.filter(
+      (garment) => !garment.published || remoteIds.has(garment.id),
+    );
+    await this.upsertMany(garments);
+  }
+
   async deleteGarment(id: string): Promise<void> {
     this.garments = this.garments.filter((garment) => garment.id !== id);
   }
@@ -146,6 +154,19 @@ describe('GarmentRepositoryImpl syncGarments', () => {
     const local = new FakeLocalDataSource();
     const unpublishedGarment = { ...SAMPLE_GARMENT, id: 'g2', published: false };
     const remote = new FakeRemoteDataSource(true, [SAMPLE_GARMENT, unpublishedGarment]);
+    const repository = new GarmentRepositoryImpl(local, remote);
+
+    await repository.syncGarments();
+    const garments = await repository.getGarments();
+
+    expect(garments).toHaveLength(1);
+    expect(garments[0].id).toBe('g1');
+  });
+
+  it('removes stale published garments from local cache after remote sync', async () => {
+    const staleGarment = { ...SAMPLE_GARMENT, id: 'old-garment', name: 'Prenda antigua' };
+    const local = new FakeLocalDataSource([staleGarment]);
+    const remote = new FakeRemoteDataSource(true, [SAMPLE_GARMENT]);
     const repository = new GarmentRepositoryImpl(local, remote);
 
     await repository.syncGarments();

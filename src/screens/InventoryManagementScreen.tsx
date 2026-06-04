@@ -21,6 +21,7 @@ import { getIt } from '../core/di/getIt';
 import { DI_TOKENS } from '../core/di/injectionContainer';
 import { GarmentRemoteDataSource } from '../features/garment/data/datasources/GarmentRemoteDataSource';
 import { toGarmentRow } from '../features/garment/data/models/GarmentModel';
+import { trackEvent } from '../core/services/analyticsService';
 import { formatCOP } from '../features/garment/presentation/utils/formatCOP';
 import {
   listPurchaseRequestsForUser,
@@ -154,6 +155,15 @@ export function InventoryManagementScreen({ navigation }: Props) {
                 }
 
                 await garmentDao.deleteForVendor(garment.id, vendorId);
+                void trackEvent(
+                  'inventory_item_deleted',
+                  {
+                    garmentId: garment.id,
+                    category: garment.category,
+                    stock: garment.stock,
+                  },
+                  auth.user,
+                );
                 await loadGarments();
               } catch (error) {
                 Alert.alert('No se pudo eliminar', getDeleteError(error));
@@ -163,7 +173,7 @@ export function InventoryManagementScreen({ navigation }: Props) {
         ],
       );
     },
-    [auth.user?.id, garmentDao, garmentRemoteDataSource, loadGarments],
+    [auth.user, garmentDao, garmentRemoteDataSource, loadGarments],
   );
 
   return (

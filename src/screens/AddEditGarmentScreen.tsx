@@ -18,6 +18,7 @@ import { useAuth } from '../auth/AuthContext';
 import { GarmentDao } from '../core/database/daos/GarmentDao';
 import { getDatabase } from '../core/database/database';
 import { GarmentRow } from '../core/database/types';
+import { trackEvent } from '../core/services/analyticsService';
 import { getIt } from '../core/di/getIt';
 import { DI_TOKENS } from '../core/di/injectionContainer';
 import { GarmentRemoteDataSource } from '../features/garment/data/datasources/GarmentRemoteDataSource';
@@ -207,6 +208,17 @@ export function AddEditGarmentScreen({ navigation, route }: Props) {
         });
       }
 
+      void trackEvent(
+        isEditing ? 'inventory_item_updated' : 'inventory_item_created',
+        {
+          garmentId: row.id,
+          category: row.category,
+          price: row.price,
+          stock: row.stock,
+          published: Boolean(row.published),
+        },
+        auth.user,
+      );
       navigation.goBack();
     } catch (e: any) {
       setError(getGarmentPersistenceError(e));

@@ -26,6 +26,7 @@ import {
 } from '../features/garment/presentation/viewmodels/GarmentGalleryViewModel';
 import { useNetwork } from '../context/NetworkContext';
 import { OfflineBanner } from '../components/OfflineBanner';
+import { trackEvent } from '../core/services/analyticsService';
 import { colors, radius, spacing } from '../theme';
 import { RootStackParamList } from '../types';
 
@@ -68,6 +69,14 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
     if (justReconnected) syncRef.current();
   }, [justReconnected]);
 
+  useEffect(() => {
+    void trackEvent(
+      'catalog_viewed',
+      { selectionMode, source: 'garment_gallery' },
+      auth.user,
+    );
+  }, [auth.user, selectionMode]);
+
   const loadFavorites = useCallback(async () => {
     const userId = auth.user?.id;
     if (!userId) { setFavoriteIds([]); return; }
@@ -87,6 +96,7 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
       if (isFavorite) {
         await favoriteDao.deleteByUserEntity(userId, 'garment', garmentId);
         setFavoriteIds((cur) => cur.filter((id) => id !== garmentId));
+        void trackEvent('favorite_removed', { entityType: 'garment', entityId: garmentId }, auth.user);
         return;
       }
       await favoriteDao.upsert({
@@ -97,8 +107,9 @@ export function GarmentGalleryScreen({ navigation, route }: Props) {
         createdAt: new Date().toISOString(),
       });
       setFavoriteIds((cur) => [...cur, garmentId]);
+      void trackEvent('favorite_added', { entityType: 'garment', entityId: garmentId }, auth.user);
     },
-    [auth.user?.id, favoriteDao, favoriteIds],
+    [auth.user, favoriteDao, favoriteIds],
   );
 
   const toggleSelection = useCallback((garmentId: string) => {

@@ -43,7 +43,7 @@ export class GarmentRepositoryImpl implements GarmentRepository {
 
     try {
       const remoteGarments = await this.remoteDataSource.fetchPublishedGarments();
-      await this.localDataSource.upsertMany(remoteGarments);
+      await this.localDataSource.replacePublishedCache(remoteGarments);
       const syncInfo: GarmentSyncInfo = {
         source: 'remote',
         lastSyncedAt: new Date().toISOString(),

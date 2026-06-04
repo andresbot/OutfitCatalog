@@ -23,6 +23,7 @@ import { getDatabase } from '../core/database/database';
 import { GarmentRow, LookRow } from '../core/database/types';
 import { getIt } from '../core/di/getIt';
 import { DI_TOKENS } from '../core/di/injectionContainer';
+import { trackEvent } from '../core/services/analyticsService';
 import { UpdateLookUseCase } from '../features/look/domain/usecases/UpdateLookUseCase';
 import { DeleteLookUseCase } from '../features/look/domain/usecases/DeleteLookUseCase';
 import {
@@ -154,13 +155,18 @@ export function LookDetailScreen({ navigation, route }: Props) {
         garmentIds: garmentItems.map((g) => g.garment.id),
         coverImageUrl: garmentItems[0]?.garment.imageUrl ?? null,
       });
+      void trackEvent(
+        'look_updated',
+        { lookId, itemCount: garmentItems.length },
+        auth.user,
+      );
       navigation.goBack();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al guardar.');
       setSaving(false);
     }
   }, [
-    auth.user?.id, auth.user?.role, look, name, description,
+    auth.user, look, name, description,
     garmentItems, lookDao, lookItemDao, lookId, navigation,
   ]);
 
@@ -176,6 +182,11 @@ export function LookDetailScreen({ navigation, route }: Props) {
           onPress: async () => {
             try {
               await deleteLookUseCase.execute(lookId);
+              void trackEvent(
+                'look_deleted',
+                { lookId, itemCount: garmentItems.length },
+                auth.user,
+              );
               navigation.goBack();
             } catch {
               Alert.alert('Error', 'No se pudo eliminar el look.');
@@ -184,7 +195,7 @@ export function LookDetailScreen({ navigation, route }: Props) {
         },
       ],
     );
-  }, [deleteLookUseCase, look?.name, lookId, navigation]);
+  }, [auth.user, deleteLookUseCase, garmentItems.length, look?.name, lookId, navigation]);
 
   const handleOpenShare = useCallback(async () => {
     if (garmentItems.length === 0) {

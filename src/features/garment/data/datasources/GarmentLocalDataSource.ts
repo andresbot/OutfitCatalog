@@ -14,6 +14,7 @@ export interface GarmentLocalDataSource {
   getCategories(): Promise<string[]>;
   upsertGarment(garment: GarmentModel): Promise<void>;
   upsertMany(garments: GarmentModel[]): Promise<void>;
+  replacePublishedCache(garments: GarmentModel[]): Promise<void>;
   deleteGarment(id: string): Promise<void>;
   getSyncInfo(): Promise<GarmentSyncInfo>;
   setSyncInfo(syncInfo: GarmentSyncInfo): Promise<void>;
@@ -53,6 +54,10 @@ export class GarmentLocalDataSourceImpl implements GarmentLocalDataSource {
 
   async upsertMany(garments: GarmentModel[]): Promise<void> {
     await this.garmentDao.upsertMany(garments.map(toGarmentRow));
+  }
+
+  async replacePublishedCache(garments: GarmentModel[]): Promise<void> {
+    await this.garmentDao.replacePublishedCache(garments.map(toGarmentRow));
   }
 
   async deleteGarment(id: string): Promise<void> {

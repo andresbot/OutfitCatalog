@@ -20,12 +20,12 @@ export function Overlay() {
 
       {/* 01 HERO */}
       <section className="scene-section" id="hero">
-        <HudPanel>
-          <p className="eyebrow">OutfitCatalog · entrega final</p>
+        <HudPanel className="hero-panel">
+          <p className="eyebrow">OutfitCatalog / entrega final</p>
           <h1 className="hero-title">ATELIER</h1>
           <p className="hero-subtitle">
-            Una experiencia movil para descubrir prendas, crear looks, conectar clientes
-            con vendedores y medir el rendimiento real del catalogo.
+            App movil funcional para mostrar como un catalogo de moda pasa de
+            exploracion visual a solicitudes, stock controlado, roles y metricas.
           </p>
           <div className="actions">
             <a className="btn btn-primary" href={apkUrl}><Smartphone size={18} />Probar APK</a>
@@ -41,13 +41,16 @@ export function Overlay() {
       <section className="scene-section align-right" id="whatis">
         <HudPanel>
           <p className="eyebrow">La app en vivo</p>
-          <h2>Un circuito comercial, no una galeria estatica.</h2>
-          <p>Cada accion deja rastro: favoritos, looks, solicitudes, estados de venta, stock y eventos KPI.</p>
+          <h2>Un catalogo de moda convertido en flujo comercial medible.</h2>
+          <p>
+            ATELIER resuelve el seguimiento manual de ventas por chat: centraliza
+            prendas, clientes, vendedores, looks, solicitudes y estados de inventario.
+          </p>
           <ul className="label" style={{ lineHeight: 2, listStyle: 'none', padding: 0, marginTop: 16 }}>
-            <li>React Native · Expo SDK 54</li>
-            <li>Firebase · Auth + Firestore</li>
-            <li>SQLite · cache offline-first</li>
-            <li>MVVM + Clean Architecture</li>
+            <li>Problema: catalogos dispersos y seguimiento manual</li>
+            <li>Solucion: app movil con roles, looks y solicitudes</li>
+            <li>Stack: React Native, Expo, Firebase, SQLite y Cloudinary</li>
+            <li>Entrega: APK con EAS Build y landing 3D para exposicion</li>
           </ul>
         </HudPanel>
       </section>
@@ -56,12 +59,12 @@ export function Overlay() {
       <section className="scene-section" id="flow">
         <div style={{ maxWidth: 760 }}>
           <p className="eyebrow">Flujo del cliente</p>
-          <h2>De descubrir a solicitar, en cuatro pasos.</h2>
+          <h2>De crear cuenta a generar una solicitud comercial.</h2>
           <div className="flow-grid" style={{ marginTop: 20 }}>
             {clientFlow.map((f) => (
               <div className="mini-card" key={f.step}>
                 <f.icon className="ico" size={22} />
-                <h3>{f.step} · {f.title}</h3>
+                <h3>{f.step} / {f.title}</h3>
                 <p style={{ fontSize: 13 }}>{f.copy}</p>
               </div>
             ))}
@@ -73,7 +76,7 @@ export function Overlay() {
       <section className="scene-section align-center" id="roles">
         <div style={{ maxWidth: 1000 }}>
           <p className="eyebrow">Tres perfiles, un catalogo</p>
-          <h2>Cliente, vendedor y admin comparten datos sin mezclar permisos.</h2>
+          <h2>Cliente, vendedor y admin usan la misma app con permisos diferentes.</h2>
           <div className="role-grid" style={{ marginTop: 22, textAlign: 'left' }}>
             {rolePanels.map((r) => (
               <HudPanel key={r.role} accent={r.accent}>
@@ -96,7 +99,7 @@ export function Overlay() {
       <section className="scene-section" id="arch">
         <div style={{ maxWidth: 820 }}>
           <p className="eyebrow">Arquitectura</p>
-          <h2>MVVM + Clean Architecture sobre Expo y Firebase.</h2>
+          <h2>Arquitectura movil con capas, persistencia local y backend serverless.</h2>
           <div className="flow-grid" style={{ marginTop: 20, gridTemplateColumns: 'repeat(3,1fr)' }}>
             {archNodes.map((n) => (
               <div className="mini-card" key={n.label}>
@@ -113,7 +116,7 @@ export function Overlay() {
       <section className="scene-section align-right" id="kpis">
         <div style={{ maxWidth: 760 }}>
           <p className="eyebrow">KPIs integrados</p>
-          <h2>Preparada para medir adopcion, retencion y conversion.</h2>
+          <h2>La entrega permite explicar adopcion, retencion, conversion e inventario.</h2>
           <div className="kpi-grid" style={{ marginTop: 20 }}>
             {kpiCards.map((k) => (
               <div className="mini-card" key={k.label}>
@@ -130,7 +133,7 @@ export function Overlay() {
       <section className="scene-section" id="qa">
         <div style={{ maxWidth: 820 }}>
           <p className="eyebrow">Evidencia tecnica y QA</p>
-          <h2>Defendible para una revision academica y tecnica.</h2>
+          <h2>Evidencias para sustentar calidad, seguridad, rendimiento y despliegue.</h2>
           <div className="proof-grid" style={{ marginTop: 20 }}>
             {proofItems.map((p) => (
               <div className="mini-card" key={p.title}>
@@ -146,8 +149,8 @@ export function Overlay() {
       {/* 08 DEMO + AUTHORS */}
       <section className="scene-section align-center" id="demo">
         <HudPanel>
-          <p className="eyebrow">Lista para demo</p>
-          <h2>ATELIER muestra el producto, el flujo y la medicion.</h2>
+          <p className="eyebrow"> </p>
+          <h2>ATELIER queda listo para defender problema, desarrollo, datos, QA y APK.</h2>
           <div className="actions" style={{ justifyContent: 'center', marginTop: 18 }}>
             <a className="btn btn-primary" href={apkUrl}><Download size={18} />Descargar APK</a>
             <a className="btn btn-secondary" href="#hero"><ArrowUp size={18} />Volver arriba</a>
@@ -155,7 +158,7 @@ export function Overlay() {
           <div className="authors" style={{ justifyContent: 'center' }}>
             {authors.map((a) => <span className="author-chip" key={a}>{a}</span>)}
           </div>
-          <p className="label" style={{ marginTop: 10 }}>Proyecto OutfitCatalog</p>
+          <p className="label" style={{ marginTop: 10 }}> </p>
         </HudPanel>
       </section>
     </div>

@@ -38,6 +38,9 @@ android/.gradle/
 ios/Pods/
 .env
 
+# Local source media copied into landing/public when needed
+/video.mp4
+
 # Claude Code superpowers
 .superpowers/
 docs/superpowers/

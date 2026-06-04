@@ -9,11 +9,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useAuth } from '../auth/AuthContext';
 import { GarmentDao } from '../core/database/daos/GarmentDao';
 import { LookDao } from '../core/database/daos/LookDao';
 import { LookItemDao } from '../core/database/daos/LookItemDao';
 import { FavoriteDao } from '../core/database/daos/FavoriteDao';
 import { getDatabase } from '../core/database/database';
+import {
+  AnalyticsSummary,
+  getAnalyticsSummary,
+  trackEvent,
+} from '../core/services/analyticsService';
 import { listAllUsers } from '../auth/firebaseUsers';
 import { formatCOP } from '../features/garment/presentation/utils/formatCOP';
 import { colors, radius, shadows, spacing } from '../theme';
@@ -34,9 +40,11 @@ type Report = {
   outOfStock: number;
   categoryDistribution: { category: string; count: number }[];
   topCategories: { category: string; count: number }[];
+  analytics: AnalyticsSummary;
 };
 
 export function AdminReportsScreen({ navigation }: Props) {
+  const auth = useAuth();
   const garmentDao = useMemo(() => new GarmentDao(getDatabase), []);
   const lookDao = useMemo(() => new LookDao(getDatabase), []);
   const lookItemDao = useMemo(() => new LookItemDao(getDatabase), []);
@@ -46,10 +54,11 @@ export function AdminReportsScreen({ navigation }: Props) {
 
   const buildReport = useCallback(async () => {
     setLoading(true);
-    const [garments, looks, favorites] = await Promise.all([
+    const [garments, looks, favorites, analytics] = await Promise.all([
       garmentDao.list(),
       lookDao.list(),
       favoriteDao.list(),
+      getAnalyticsSummary(30),
     ]);
 
     let users: Awaited<ReturnType<typeof listAllUsers>> = [];
@@ -82,10 +91,12 @@ export function AdminReportsScreen({ navigation }: Props) {
       outOfStock: garments.filter((g) => g.stock === 0).length,
       categoryDistribution,
       topCategories: categoryDistribution.slice(0, 5),
+      analytics,
     });
     setLoading(false);
+    void trackEvent('admin_report_viewed', { days: analytics.days }, auth.user);
     void lookItemDao;
-  }, [garmentDao, lookDao, lookItemDao, favoriteDao]);
+  }, [auth.user, garmentDao, lookDao, lookItemDao, favoriteDao]);
 
   useEffect(() => {
     buildReport();
@@ -134,6 +145,20 @@ export function AdminReportsScreen({ navigation }: Props) {
             <Stat label="Agotadas" value={report.outOfStock} accent={colors.error} />
           </View>
 
+          <Text style={styles.sectionTitle}>KPIs ultimos {report.analytics.days} dias</Text>
+          <View style={styles.grid}>
+            <Stat label="Eventos" value={report.analytics.totalEvents} />
+            <Stat label="Usuarios activos" value={report.analytics.activeUsers} />
+            <Stat label="Registros" value={report.analytics.signUps} accent={colors.success} />
+            <Stat label="Logins" value={report.analytics.logins} />
+            <Stat label="Catalogo" value={report.analytics.catalogViews} />
+            <Stat label="Vistas prenda" value={report.analytics.garmentViews} />
+            <Stat label="Favoritos +" value={report.analytics.favoritesAdded} accent={colors.success} />
+            <Stat label="Looks creados" value={report.analytics.looksCreated} accent={colors.primary} />
+            <Stat label="Solicitudes" value={report.analytics.purchaseRequestsCreated} accent={colors.primary} />
+            <Stat label="Ventas" value={report.analytics.purchaseRequestsSold} accent={colors.success} />
+          </View>
+
           <Text style={styles.sectionTitle}>Categorias mas frecuentes</Text>
           {report.topCategories.length === 0 ? (
             <Text style={styles.empty}>Sin datos.</Text>
@@ -150,6 +175,27 @@ export function AdminReportsScreen({ navigation }: Props) {
                     <View style={[styles.barFill, { width: `${ratio * 100}%` }]} />
                   </View>
                   <Text style={styles.barCount}>{c.count}</Text>
+                </View>
+              );
+            })
+          )}
+
+          <Text style={styles.sectionTitle}>Eventos mas frecuentes</Text>
+          {report.analytics.topEvents.length === 0 ? (
+            <Text style={styles.empty}>Sin eventos KPI registrados aun.</Text>
+          ) : (
+            report.analytics.topEvents.map((event, idx) => {
+              const max = report.analytics.topEvents[0]?.count ?? 1;
+              const ratio = event.count / max;
+              return (
+                <View key={event.name} style={styles.barRow}>
+                  <Text style={styles.barLabel}>
+                    {idx + 1}. {event.name}
+                  </Text>
+                  <View style={styles.barTrack}>
+                    <View style={[styles.barFill, { width: `${ratio * 100}%` }]} />
+                  </View>
+                  <Text style={styles.barCount}>{event.count}</Text>
                 </View>
               );
             })

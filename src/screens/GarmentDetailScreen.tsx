@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -23,6 +23,7 @@ import { CachedImage } from '../components/CachedImage';
 import { HeartButton } from '../components/HeartButton';
 import { FavoriteDao } from '../core/database/daos/FavoriteDao';
 import { getDatabase } from '../core/database/database';
+import { trackEvent } from '../core/services/analyticsService';
 import { formatCOP } from '../features/garment/presentation/utils/formatCOP';
 import { getIt } from '../core/di/getIt';
 import { DI_TOKENS } from '../core/di/injectionContainer';
@@ -54,6 +55,21 @@ export function GarmentDetailScreen({ route, navigation }: Props) {
   const { state: tryOnState, start: startTryOn, dismiss: dismissTryOn } = useTryOnViewModel(
     garment?.imageUrl ?? '',
   );
+
+  useEffect(() => {
+    if (!garment) return;
+    void trackEvent(
+      'garment_viewed',
+      {
+        garmentId: garment.id,
+        category: garment.category,
+        vendorId: garment.vendorId,
+        price: garment.price,
+        stock: garment.stock,
+      },
+      auth.user,
+    );
+  }, [auth.user, garment]);
 
   const doTryOn = useCallback(async (source: 'camera' | 'gallery') => {
     if (!garment) return;
@@ -105,6 +121,7 @@ export function GarmentDetailScreen({ route, navigation }: Props) {
     if (isFavorite) {
       await favoriteDao.deleteByUserEntity(userId, 'garment', garment.id);
       setIsFavorite(false);
+      void trackEvent('favorite_removed', { entityType: 'garment', entityId: garment.id }, auth.user);
       return;
     }
 
@@ -116,7 +133,8 @@ export function GarmentDetailScreen({ route, navigation }: Props) {
       createdAt: new Date().toISOString(),
     });
     setIsFavorite(true);
-  }, [auth.user?.id, favoriteDao, garment, isFavorite]);
+    void trackEvent('favorite_added', { entityType: 'garment', entityId: garment.id }, auth.user);
+  }, [auth.user, favoriteDao, garment, isFavorite]);
 
   const handleShare = useCallback(async () => {
     if (!garment) return;

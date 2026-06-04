@@ -12,6 +12,7 @@ import {
   toReadableFirebaseError,
   warmUpFirebaseAuth,
 } from './firebaseAuth';
+import { trackEvent } from '../core/services/analyticsService';
 
 type AuthContextValue = {
   user: AuthUser | null;
@@ -76,6 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           setLastError(null);
           setUser(nextUser);
+          void trackEvent('login_success', { method: 'email' }, nextUser);
           return nextUser;
         } catch (error) {
           setLastError(toReadableFirebaseError(error));
@@ -103,6 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           setLastError(null);
           setUser(nextUser);
+          void trackEvent('sign_up_completed', { method: 'email', role }, nextUser);
           return nextUser;
         } catch (error) {
           setLastError(toReadableFirebaseError(error));
@@ -119,6 +122,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (!result.isNew) {
             setLastError(null);
             setUser(result.user);
+            void trackEvent('google_sign_in_success', { method: 'google_web' }, result.user);
           }
           return result;
         } catch (error) {
@@ -136,6 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (!result.isNew) {
             setLastError(null);
             setUser(result.user);
+            void trackEvent('google_sign_in_success', { method: 'google_credentials' }, result.user);
           }
           return result;
         } catch (error) {
@@ -153,6 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (!result.isNew) {
             setLastError(null);
             setUser(result.user);
+            void trackEvent('google_sign_in_success', { method: 'google_native' }, result.user);
           }
           return result;
         } catch (error) {
@@ -174,6 +180,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
           setLastError(null);
           setUser(nextUser);
+          void trackEvent('google_sign_up_completed', { method: 'google', role }, nextUser);
           return nextUser;
         } catch (error) {
           setLastError(toReadableFirebaseError(error));

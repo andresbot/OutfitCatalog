@@ -49,7 +49,7 @@ export function App() {
           style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 10 }}
           onClick={() => video?.play().catch(() => undefined)}
         >
-          ▶ Reproducir video
+          Reproducir video
         </button>
       )}
     </main>

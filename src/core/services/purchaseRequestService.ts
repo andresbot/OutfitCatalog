@@ -1,4 +1,5 @@
 import { GarmentRow } from '../database/types';
+import { trackEvent } from './analyticsService';
 
 export type PurchaseRequestStatus = 'pending' | 'contacted' | 'reserved' | 'sold' | 'cancelled';
 
@@ -430,6 +431,7 @@ export async function createPurchaseRequest(
   const message = input.message || buildPurchaseRequestMessage(draft);
   const request = { ...draft, message };
   const context = getDb();
+  let remoteSaved = true;
 
   try {
     if (!context) {
@@ -440,9 +442,29 @@ export async function createPurchaseRequest(
       request,
     );
   } catch (error) {
+    remoteSaved = false;
     console.warn('Purchase request remote save failed, using local cache:', toRequestError(error));
     await saveLocalRequest(request);
   }
+
+  void trackEvent(
+    'purchase_request_created',
+    {
+      source: request.source,
+      sourceId: request.sourceId,
+      vendorId: request.vendorId,
+      itemCount: request.items.length,
+      total: request.total,
+      remoteSaved,
+    },
+    {
+      id: request.buyerId,
+      name: request.buyerName,
+      email: request.buyerEmail,
+      role: 'user',
+      ...(request.buyerPhone ? { phone: request.buyerPhone } : {}),
+    },
+  );
 
   return request;
 }
@@ -555,7 +577,10 @@ export async function updatePurchaseRequestStatus(
 ): Promise<void> {
   const context = getDb();
   const local = await readLocalRequests();
-  const existsLocal = local.some((request) => request.id === requestId);
+  const localRequest = local.find((request) => request.id === requestId);
+  const existsLocal = Boolean(localRequest);
+  let trackedRequest: PurchaseRequest | null = localRequest ?? null;
+  let previousStatus: PurchaseRequestStatus | null = localRequest?.status ?? null;
 
   try {
     if (!context) {
@@ -573,6 +598,8 @@ export async function updatePurchaseRequestStatus(
         requestSnap.id,
         requestSnap.data() as Record<string, unknown>,
       );
+      trackedRequest = currentRequest;
+      previousStatus = currentRequest.status;
       const now = new Date().toISOString();
       const delta = stockDeltaForStatusChange(currentRequest.status, status);
 
@@ -603,18 +630,63 @@ export async function updatePurchaseRequestStatus(
       ),
     );
   }
+
+  if (trackedRequest && previousStatus !== status) {
+    void trackEvent(
+      'purchase_request_status_changed',
+      {
+        requestId,
+        previousStatus,
+        nextStatus: status,
+        source: trackedRequest.source,
+        vendorId: trackedRequest.vendorId,
+        buyerId: trackedRequest.buyerId,
+        itemCount: trackedRequest.items.length,
+        total: trackedRequest.total,
+      },
+      {
+        id: trackedRequest.vendorId,
+        name: trackedRequest.vendorName,
+        email: '',
+        role: 'vendor',
+      },
+    );
+  }
 }
 
 export async function deletePurchaseRequest(requestId: string): Promise<void> {
   const context = getDb();
   const local = await readLocalRequests();
-  const existsLocal = local.some((request) => request.id === requestId);
+  const localRequest = local.find((request) => request.id === requestId);
+  const existsLocal = Boolean(localRequest);
 
   if (existsLocal) {
     await removeLocalRequest(requestId);
+    if (localRequest) {
+      void trackEvent(
+        'purchase_request_deleted',
+        {
+          requestId,
+          source: localRequest.source,
+          vendorId: localRequest.vendorId,
+          buyerId: localRequest.buyerId,
+          status: localRequest.status,
+          itemCount: localRequest.items.length,
+          localOnly: true,
+        },
+        {
+          id: localRequest.buyerId,
+          name: localRequest.buyerName,
+          email: localRequest.buyerEmail,
+          role: 'user',
+          ...(localRequest.buyerPhone ? { phone: localRequest.buyerPhone } : {}),
+        },
+      );
+    }
     return;
   }
 
+  const deletedRequestRef: { current: PurchaseRequest | null } = { current: null };
   try {
     if (!context) {
       throw new Error('Firebase no esta configurado.');
@@ -631,6 +703,7 @@ export async function deletePurchaseRequest(requestId: string): Promise<void> {
         requestSnap.id,
         requestSnap.data() as Record<string, unknown>,
       );
+      deletedRequestRef.current = currentRequest;
       const now = new Date().toISOString();
 
       if (currentRequest.status === 'reserved') {
@@ -641,5 +714,21 @@ export async function deletePurchaseRequest(requestId: string): Promise<void> {
     });
   } catch (error) {
     throw toRequestError(error);
+  }
+
+  if (deletedRequestRef.current) {
+    const deletedRequest = deletedRequestRef.current;
+    void trackEvent(
+      'purchase_request_deleted',
+      {
+        requestId,
+        source: deletedRequest.source,
+        vendorId: deletedRequest.vendorId,
+        buyerId: deletedRequest.buyerId,
+        status: deletedRequest.status,
+        itemCount: deletedRequest.items.length,
+        localOnly: false,
+      },
+    );
   }
 }

@@ -446,4 +446,75 @@ export class GarmentDao {
       throw error;
     }
   }
+
+  async replacePublishedCache(garments: GarmentRow[]): Promise<void> {
+    const database = await this.database();
+    await database.execAsync('BEGIN');
+    try {
+      if (garments.length === 0) {
+        await database.runAsync('DELETE FROM garments WHERE published = 1');
+      } else {
+        const ids = garments.map((garment) => garment.id);
+        const placeholders = ids.map(() => '?').join(', ');
+        await database.runAsync(
+          `DELETE FROM garments
+           WHERE published = 1
+             AND id NOT IN (${placeholders})`,
+          ...ids,
+        );
+
+        for (const garment of garments) {
+          await database.runAsync(
+            `INSERT INTO garments (
+              id,
+              name,
+              category,
+              price,
+              image_url,
+              description,
+              size,
+              color,
+              stock,
+              vendor_id,
+              vendor_name,
+              published,
+              created_at,
+              updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+              name = excluded.name,
+              category = excluded.category,
+              price = excluded.price,
+              image_url = excluded.image_url,
+              description = excluded.description,
+              size = excluded.size,
+              color = excluded.color,
+              stock = excluded.stock,
+              vendor_id = excluded.vendor_id,
+              vendor_name = excluded.vendor_name,
+              published = excluded.published,
+              updated_at = excluded.updated_at`,
+            garment.id,
+            garment.name,
+            garment.category,
+            garment.price,
+            garment.imageUrl,
+            garment.description,
+            garment.size,
+            garment.color,
+            garment.stock,
+            garment.vendorId,
+            garment.vendorName,
+            garment.published,
+            garment.createdAt,
+            garment.updatedAt,
+          );
+        }
+      }
+      await database.execAsync('COMMIT');
+    } catch (error) {
+      await database.execAsync('ROLLBACK');
+      throw error;
+    }
+  }
 }

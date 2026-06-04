@@ -16,6 +16,7 @@ import { useAuth } from '../auth/AuthContext';
 import { GarmentDao } from '../core/database/daos/GarmentDao';
 import { getDatabase } from '../core/database/database';
 import { GarmentRow } from '../core/database/types';
+import { trackEvent } from '../core/services/analyticsService';
 import { DI_TOKENS } from '../core/di/injectionContainer';
 import { getIt } from '../core/di/getIt';
 import { CreateLookUseCase } from '../features/look/domain/usecases/CreateLookUseCase';
@@ -70,13 +71,22 @@ export function CreateLookPreviewScreen({ navigation, route }: Props) {
 
     try {
       const coverImageUrl = garments[0]?.imageUrl ?? null;
-      await createLookUseCase.execute({ userId, name, description, garmentIds, coverImageUrl });
+      const look = await createLookUseCase.execute({ userId, name, description, garmentIds, coverImageUrl });
+      void trackEvent(
+        'look_created',
+        {
+          lookId: look.id,
+          itemCount: garmentIds.length,
+          source: 'create_look_preview',
+        },
+        auth.user,
+      );
       navigation.navigate('Looks');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al guardar el look.');
       setSaving(false);
     }
-  }, [auth.user?.id, createLookUseCase, description, garmentIds, name, navigation]);
+  }, [auth.user, createLookUseCase, description, garmentIds, name, navigation]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
