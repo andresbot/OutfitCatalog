@@ -25,10 +25,10 @@ function setupFriendlyAndroidForm(form, sheet) {
   form.setTitle('ATELIER - Cuentanos como te fue en Android');
   form.setDescription(
     'Hola, gracias por ayudarnos a probar ATELIER.\n\n' +
-    'Esta encuesta es para personas del comun. No necesitas saber de tecnologia ni programacion. ' +
-    'Solo queremos conocer tu experiencia usando la app en un celular Android: si se entiende, si te gusto, ' +
-    'si cargo bien y que cambiarias.\n\n' +
-    'Antes de responder, intenta instalar la app, abrirla, mirar ropa, guardar algo que te guste y probar una solicitud de contacto.\n\n' +
+    'Esta encuesta es corta y es para personas del comun. No necesitas saber de tecnologia. ' +
+    'Solo queremos saber si la app se entiende, si carga bien, si te gusto y que mejorarias.\n\n' +
+    'Antes de responder, intenta instalar la app, abrirla, mirar ropa, guardar algo que te guste ' +
+    'y probar una solicitud de contacto.\n\n' +
     'No escribas contrasenas, datos bancarios ni informacion privada.\n\n' +
     'Archivo de instalacion Android: ' + APK_URL + '\n' +
     'Pagina del proyecto: ' + LANDING_URL
@@ -47,11 +47,8 @@ function setupFriendlyAndroidForm(form, sheet) {
   }
 
   addWelcomeSection(form);
-  addPhoneSection(form);
-  addActionsSection(form);
+  addTestSection(form);
   addExperienceSection(form);
-  addLoadingSection(form);
-  addInternetSection(form);
   addOpinionSection(form);
 }
 
@@ -81,39 +78,18 @@ function addWelcomeSection(form) {
     .setTitle('Que edad tienes?')
     .setChoiceValues(['Menos de 18', '18 a 24', '25 a 34', '35 a 44', '45 o mas', 'Prefiero no decir'])
     .setRequired(true);
-
-  form.addMultipleChoiceItem()
-    .setTitle('Sueles usar apps para mirar ropa, comprar o buscar productos?')
-    .setChoiceValues(['Si, mucho', 'A veces', 'Casi nunca', 'Nunca'])
-    .setRequired(true);
 }
 
-function addPhoneSection(form) {
+function addTestSection(form) {
   form.addPageBreakItem()
-    .setTitle('2. Celular donde probaste la app')
-    .setHelpText('Esta prueba es solo para Android.');
+    .setTitle('2. Que alcanzaste a probar?')
+    .setHelpText('Marca solo lo que lograste hacer en la app.');
 
   form.addMultipleChoiceItem()
     .setTitle('Donde probaste ATELIER?')
     .setChoiceValues(['En mi celular Android', 'En una tablet Android', 'En un celular prestado', 'En un emulador'])
     .showOtherOption(true)
     .setRequired(true);
-
-  form.addTextItem()
-    .setTitle('Si sabes, escribe la marca o modelo del celular')
-    .setHelpText('Ejemplo: Samsung, Xiaomi, Motorola, Pixel. Si no sabes, escribe "No se".')
-    .setRequired(false);
-
-  form.addMultipleChoiceItem()
-    .setTitle('Que tan facil fue instalar la app?')
-    .setChoiceValues(['Muy facil', 'Facil', 'Normal', 'Dificil', 'No pude instalarla'])
-    .setRequired(true);
-}
-
-function addActionsSection(form) {
-  form.addPageBreakItem()
-    .setTitle('3. Que alcanzaste a probar?')
-    .setHelpText('Marca solo lo que lograste hacer en la app.');
 
   form.addCheckboxItem()
     .setTitle('Durante la prueba pude...')
@@ -125,40 +101,32 @@ function addActionsSection(form) {
       'Abrir una prenda para ver mas informacion',
       'Guardar una prenda como favorita',
       'Ver o crear un look',
-      'Enviar una solicitud o contactar a un vendedor',
-      'Cerrar y volver a abrir la app'
+      'Enviar una solicitud o contactar a un vendedor'
     ])
     .setRequired(true);
 
   form.addParagraphTextItem()
-    .setTitle('Si algo no te funciono, cuentanos que paso')
+    .setTitle('Si algo no te funciono, cuentanos brevemente que paso')
     .setHelpText('Ejemplo: no pude entrar, no cargo una foto, no encontre un boton, etc.')
     .setRequired(false);
 }
 
 function addExperienceSection(form) {
   form.addPageBreakItem()
-    .setTitle('4. Como se sintio usarla?')
+    .setTitle('3. Como se sintio usarla?')
     .setHelpText('Califica de 1 a 5. 1 significa muy mal y 5 significa muy bien.');
 
   addScale(form, 'Entendi rapidamente de que trata ATELIER.', 'No entendi', 'Entendi muy bien');
   addScale(form, 'Fue facil crear cuenta o entrar.', 'Muy dificil', 'Muy facil');
-  addScale(form, 'Fue facil mirar las prendas.', 'Muy dificil', 'Muy facil');
-  addScale(form, 'Los botones se entendian.', 'Nada claros', 'Muy claros');
-  addScale(form, 'El texto se leia bien.', 'Se leia mal', 'Se leia muy bien');
+  addScale(form, 'Fue facil mirar prendas, favoritos o looks.', 'Muy dificil', 'Muy facil');
   addScale(form, 'El diseno de la app me parecio agradable.', 'No me gusto', 'Me gusto mucho');
-  addScale(form, 'Entendi como guardar favoritos, ver looks o pedir informacion.', 'No entendi', 'Entendi muy bien');
+  addScale(form, 'La app cargo y funciono bien.', 'Muy mal', 'Muy bien');
 }
 
-function addLoadingSection(form) {
+function addOpinionSection(form) {
   form.addPageBreakItem()
-    .setTitle('5. Rapidez y funcionamiento')
-    .setHelpText('Responde segun lo que viste mientras usabas la app.');
-
-  addScale(form, 'La app abrio rapido.', 'Muy lenta', 'Muy rapida');
-  addScale(form, 'Las fotos de la ropa cargaron bien.', 'Cargaron mal', 'Cargaron bien');
-  addScale(form, 'Moverme por el catalogo se sintio comodo.', 'Se trababa mucho', 'Muy comodo');
-  addScale(form, 'La app funciono sin cerrarse sola.', 'Se cerro o fallo', 'Funciono bien');
+    .setTitle('4. Tu opinion final')
+    .setHelpText('Con tus respuestas sabremos que mejorar.');
 
   form.addMultipleChoiceItem()
     .setTitle('Te paso alguno de estos problemas?')
@@ -175,51 +143,11 @@ function addLoadingSection(form) {
     .setRequired(true);
 
   form.addParagraphTextItem()
-    .setTitle('Si tuviste un problema, en que parte paso?')
-    .setHelpText('Puedes escribir algo corto, por ejemplo: "en el registro", "en el catalogo", "al enviar solicitud".')
-    .setRequired(false);
-}
-
-function addInternetSection(form) {
-  form.addPageBreakItem()
-    .setTitle('6. Internet')
-    .setHelpText('Esto nos ayuda a saber si la app se comporta bien con distintas conexiones.');
-
-  form.addMultipleChoiceItem()
-    .setTitle('Que conexion usaste para probarla?')
-    .setChoiceValues(['WiFi', 'Datos del celular', 'Mala senal', 'Use WiFi y datos', 'No se'])
-    .showOtherOption(true)
-    .setRequired(true);
-
-  addScale(form, 'Con esa conexion, la app se dejo usar bien.', 'Muy mal', 'Muy bien');
-
-  form.addMultipleChoiceItem()
-    .setTitle('Que fue lo que mas se demoro en cargar?')
-    .setChoiceValues(['Nada, todo cargo bien', 'Abrir la app', 'Las fotos', 'El catalogo', 'Crear cuenta o entrar', 'Enviar una solicitud', 'No se'])
-    .showOtherOption(true)
-    .setRequired(true);
-}
-
-function addOpinionSection(form) {
-  form.addPageBreakItem()
-    .setTitle('7. Tu opinion final')
-    .setHelpText('Con tus respuestas sabremos que mejorar.');
-
-  form.addParagraphTextItem()
-    .setTitle('Que fue lo que mas te gusto de la app?')
-    .setRequired(true);
-
-  form.addParagraphTextItem()
-    .setTitle('Que fue lo mas dificil o confuso?')
+    .setTitle('Que fue lo que mas te gusto?')
     .setRequired(true);
 
   form.addParagraphTextItem()
     .setTitle('Que cambiarias o mejorarias?')
-    .setRequired(true);
-
-  form.addMultipleChoiceItem()
-    .setTitle('Usarias una app asi para mirar ropa o pedir informacion a vendedores?')
-    .setChoiceValues(['Si', 'Tal vez', 'No'])
     .setRequired(true);
 
   form.addMultipleChoiceItem()
