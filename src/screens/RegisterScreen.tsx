@@ -15,6 +15,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { useAuth } from '../auth/AuthContext';
+import { cleanPhone, validatePhone } from '../core/utils/phoneUtils';
 import { RootStackParamList, UserRole } from '../types';
 import { colors, radius, shadows, spacing } from '../theme';
 
@@ -38,6 +39,7 @@ export function RegisterScreen({ navigation }: Props) {
   const auth = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<UserRole>('user');
   const [error, setError] = useState('');
@@ -45,6 +47,7 @@ export function RegisterScreen({ navigation }: Props) {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [nameFocused, setNameFocused] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
+  const [phoneFocused, setPhoneFocused] = useState(false);
   const [passFocused, setPassFocused] = useState(false);
 
   const brandAnim = useRef(new Animated.Value(0)).current;
@@ -56,11 +59,13 @@ export function RegisterScreen({ navigation }: Props) {
   const submitting = emailLoading || googleLoading;
 
   const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  const googleAndroidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
   const googleConfigured = !!googleWebClientId;
 
   const [, response, promptAsync] = Google.useAuthRequest({
     webClientId: googleWebClientId ?? 'not-configured',
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    androidClientId: googleAndroidClientId ?? 'not-configured',
+    selectAccount: true,
   });
 
   useEffect(() => {
@@ -103,7 +108,24 @@ export function RegisterScreen({ navigation }: Props) {
       return;
     }
 
-    if (Platform.OS === 'web') {
+    if (Platform.OS === 'android') {
+      setGoogleLoading(true);
+      setError('');
+      try {
+        const result = await auth.loginWithGoogleNative();
+        if (!result) {
+          setError(auth.lastError ?? 'No se pudo iniciar sesion con Google.');
+          return;
+        }
+        if (result.isNew) {
+          navigation.navigate('GoogleRoleSelect', result.pending);
+        } else {
+          navigateByRole(result.user.role, navigation);
+        }
+      } finally {
+        setGoogleLoading(false);
+      }
+    } else if (Platform.OS === 'web') {
       setGoogleLoading(true);
       setError('');
       try {
@@ -130,6 +152,18 @@ export function RegisterScreen({ navigation }: Props) {
       return;
     }
 
+    const cleanedPhone = cleanPhone(phone);
+    if (!cleanedPhone) {
+      setError('Ingresa un numero de telefono.');
+      return;
+    }
+
+    const phoneError = validatePhone(phone);
+    if (phoneError) {
+      setError(phoneError);
+      return;
+    }
+
     Animated.sequence([
       Animated.spring(btnScale, { toValue: 0.96, useNativeDriver: true, speed: 50 }),
       Animated.spring(btnScale, { toValue: 1, useNativeDriver: true, speed: 30 }),
@@ -138,7 +172,7 @@ export function RegisterScreen({ navigation }: Props) {
     setEmailLoading(true);
     setError('');
     try {
-      const registeredUser = await auth.register(name, email, password, role);
+      const registeredUser = await auth.register(name, email, password, role, cleanedPhone);
       if (!registeredUser) {
         setError(auth.lastError ?? 'No se pudo crear la cuenta.');
         return;
@@ -194,6 +228,22 @@ export function RegisterScreen({ navigation }: Props) {
                 onChangeText={setEmail}
                 onFocus={() => setEmailFocused(true)}
                 onBlur={() => setEmailFocused(false)}
+                editable={!submitting}
+              />
+            </View>
+
+            <View style={[styles.inputWrap, phoneFocused && styles.inputWrapFocused]}>
+              <Text style={styles.inputLabel}>TELEFONO</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="+573001234567"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="phone-pad"
+                autoCorrect={false}
+                value={phone}
+                onChangeText={setPhone}
+                onFocus={() => setPhoneFocused(true)}
+                onBlur={() => setPhoneFocused(false)}
                 editable={!submitting}
               />
             </View>
@@ -268,7 +318,7 @@ export function RegisterScreen({ navigation }: Props) {
               ) : (
                 <>
                   <Text style={styles.googleIcon}>G</Text>
-                  <Text style={styles.googleButtonText}>Continuar con Google</Text>
+                  <Text style={styles.googleButtonText}>Registrarse con Google</Text>
                 </>
               )}
             </Pressable>

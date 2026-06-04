@@ -5,6 +5,7 @@ import {
   registerWithFirebase,
   signInWithFirebase,
   signInWithGoogleFirebase,
+  signInWithGoogleNative,
   signInWithGoogleWeb,
   signOutFirebase,
   toReadableFirebaseError,
@@ -22,8 +23,15 @@ type AuthContextValue = {
     phone?: string,
   ) => Promise<AuthUser | null>;
   loginWithGoogle: (idToken: string | null, accessToken: string | null) => Promise<GoogleSignInResult | null>;
+  loginWithGoogleNative: () => Promise<GoogleSignInResult | null>;
   loginWithGoogleWeb: () => Promise<GoogleSignInResult | null>;
-  completeGoogleSignup: (uid: string, name: string, email: string, role: UserRole) => Promise<AuthUser | null>;
+  completeGoogleSignup: (
+    uid: string,
+    name: string,
+    email: string,
+    role: UserRole,
+    phone: string,
+  ) => Promise<AuthUser | null>;
   logout: () => void;
 };
 
@@ -59,8 +67,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       },
       async register(name, email, password, role, phone) {
-        if (!name.trim() || !email.trim() || password.length < 6) {
-          setLastError('Verifica nombre, correo y contrasena (minimo 6).');
+        if (!name.trim() || !email.trim() || password.length < 6 || !phone?.trim()) {
+          setLastError('Verifica nombre, correo, contrasena y telefono.');
           return null;
         }
 
@@ -70,7 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             email.trim().toLowerCase(),
             password,
             role,
-            phone?.trim() || undefined,
+            phone.trim(),
           );
           if (!nextUser) {
             setLastError('No se pudo crear la cuenta en Firebase.');
@@ -119,9 +127,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return null;
         }
       },
-      async completeGoogleSignup(uid, name, email, role) {
+      async loginWithGoogleNative() {
         try {
-          const nextUser = await completeGoogleSignupFn(uid, name, email, role);
+          const result = await signInWithGoogleNative();
+          if (!result) {
+            setLastError('No se pudo iniciar sesion con Google.');
+            return null;
+          }
+          if (!result.isNew) {
+            setLastError(null);
+            setUser(result.user);
+          }
+          return result;
+        } catch (error) {
+          setLastError(toReadableFirebaseError(error));
+          return null;
+        }
+      },
+      async completeGoogleSignup(uid, name, email, role, phone) {
+        if (!phone.trim()) {
+          setLastError('Ingresa un numero de telefono.');
+          return null;
+        }
+
+        try {
+          const nextUser = await completeGoogleSignupFn(uid, name, email, role, phone.trim());
           if (!nextUser) {
             setLastError('No se pudo crear la cuenta.');
             return null;

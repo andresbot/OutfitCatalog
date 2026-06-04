@@ -82,6 +82,18 @@ export function toReadableFirebaseError(error: unknown): string {
     return 'Se cancelo el inicio de sesion con Google.';
   }
 
+  if (code === 'SIGN_IN_CANCELLED' || code === '12501') {
+    return 'Se cancelo el inicio de sesion con Google.';
+  }
+
+  if (code === 'PLAY_SERVICES_NOT_AVAILABLE') {
+    return 'Google Play Services no esta disponible o necesita actualizarse.';
+  }
+
+  if (code === 'DEVELOPER_ERROR' || code === '10') {
+    return 'Google rechazo la configuracion de la app. Revisa en Firebase/Google Cloud el package com.camilotriana07.outfitcatalog y el SHA-1 de EAS.';
+  }
+
   return firebaseError?.message ?? 'No se pudo completar la operacion con Firebase.';
 }
 
@@ -199,6 +211,7 @@ async function getRoleProfile(ctx: FirebaseContext, uid: string): Promise<{
   role: UserRole;
   name: string;
   email: string;
+  phone?: string;
 }> {
   const userRef = ctx.runtime.doc(ctx.db, 'users', uid);
   const snapshot = await ctx.runtime.getDoc(userRef);
@@ -209,6 +222,7 @@ async function getRoleProfile(ctx: FirebaseContext, uid: string): Promise<{
       role: normalizeRole(data.role),
       name: typeof data.name === 'string' ? data.name : 'Usuario',
       email: typeof data.email === 'string' ? data.email : '',
+      phone: typeof data.phone === 'string' ? data.phone : undefined,
     };
   }
 
@@ -223,7 +237,7 @@ async function ensureUserProfile(
   ctx: FirebaseContext,
   uid: string,
   fallback: { name: string; email: string; role: UserRole },
-): Promise<{ role: UserRole; name: string; email: string }> {
+): Promise<{ role: UserRole; name: string; email: string; phone?: string }> {
   const current = await getRoleProfile(ctx, uid);
 
   const name = current.name || fallback.name || 'Usuario';
@@ -242,7 +256,7 @@ async function ensureUserProfile(
     { merge: true },
   );
 
-  return { name, email, role };
+  return { name, email, role, phone: current.phone };
 }
 
 export async function signInWithFirebase(email: string, password: string): Promise<AuthUser | null> {
@@ -269,6 +283,7 @@ export async function signInWithFirebase(email: string, password: string): Promi
     name: normalizedName,
     email: normalizedEmail,
     role: profile.role,
+    phone: profile.phone,
   };
 }
 
@@ -277,6 +292,7 @@ export async function registerWithFirebase(
   email: string,
   password: string,
   role: UserRole,
+  phone: string,
 ): Promise<AuthUser | null> {
   const ctx = await getFirebaseContext();
   if (!ctx) {
@@ -290,6 +306,7 @@ export async function registerWithFirebase(
     name,
     email: email.trim().toLowerCase(),
     role,
+    phone,
     createdAt: new Date().toISOString(),
   });
 
@@ -298,6 +315,7 @@ export async function registerWithFirebase(
     name,
     email: email.trim().toLowerCase(),
     role,
+    phone,
   };
 }
 
@@ -319,6 +337,7 @@ async function resolveGoogleUser(
         name: typeof data.name === 'string' ? data.name : fallbackName,
         email: typeof data.email === 'string' ? data.email : fallbackEmail,
         role: normalizeRole(data.role),
+        phone: typeof data.phone === 'string' ? data.phone : undefined,
       },
     };
   }
@@ -332,6 +351,7 @@ export async function signInWithGoogleWeb(): Promise<GoogleSignInResult | null> 
   if (!ctx) return null;
 
   const provider = new ctx.runtime.GoogleAuthProvider();
+  provider.setCustomParameters?.({ prompt: 'select_account' });
   const result = await ctx.runtime.signInWithPopup(ctx.auth, provider);
   const { uid } = result.user;
   const fallbackEmail = result.user.email ?? '';
@@ -356,11 +376,55 @@ export async function signInWithGoogleFirebase(
   return resolveGoogleUser(ctx, uid, fallbackName, fallbackEmail);
 }
 
+export async function signInWithGoogleNative(): Promise<GoogleSignInResult | null> {
+  const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  if (!webClientId) {
+    throw new Error('Falta EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID para Google Sign-In.');
+  }
+
+  // Loaded lazily so web builds do not evaluate the native module.
+  // eslint-disable-next-line global-require
+  const googleSignIn = require('@react-native-google-signin/google-signin');
+  const { GoogleSignin, isErrorWithCode, isSuccessResponse, statusCodes } = googleSignIn;
+
+  GoogleSignin.configure({
+    webClientId,
+    offlineAccess: false,
+  });
+
+  try {
+    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+    try {
+      await GoogleSignin.signOut();
+    } catch {
+      // There may be no cached Google session yet.
+    }
+    const response = await GoogleSignin.signIn();
+    if (!isSuccessResponse(response)) {
+      return null;
+    }
+
+    const idToken = response.data?.idToken ?? null;
+    if (!idToken) {
+      throw new Error('Google no devolvio idToken. Revisa que el webClientId sea de tipo Web.');
+    }
+
+    return signInWithGoogleFirebase(idToken, null);
+  } catch (error) {
+    const googleError = error as { code?: string };
+    if (isErrorWithCode(error) && googleError.code === statusCodes.SIGN_IN_CANCELLED) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 export async function completeGoogleSignup(
   uid: string,
   name: string,
   email: string,
   role: UserRole,
+  phone: string,
 ): Promise<AuthUser | null> {
   const ctx = await getFirebaseContext();
   if (!ctx) return null;
@@ -369,10 +433,11 @@ export async function completeGoogleSignup(
     name,
     email,
     role,
+    phone,
     createdAt: new Date().toISOString(),
   });
 
-  return { id: uid, name, email, role };
+  return { id: uid, name, email, role, phone };
 }
 
 export async function signOutFirebase(): Promise<void> {

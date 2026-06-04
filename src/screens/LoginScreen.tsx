@@ -44,11 +44,13 @@ export function LoginScreen({ navigation }: Props) {
   const btnScale = useRef(new Animated.Value(1)).current;
 
   const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  const googleAndroidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
   const googleConfigured = !!googleWebClientId;
 
   const [, response, promptAsync] = Google.useAuthRequest({
     webClientId: googleWebClientId ?? 'not-configured',
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    androidClientId: googleAndroidClientId ?? 'not-configured',
+    selectAccount: true,
   });
 
   useEffect(() => {
@@ -90,7 +92,24 @@ export function LoginScreen({ navigation }: Props) {
       return;
     }
 
-    if (Platform.OS === 'web') {
+    if (Platform.OS === 'android') {
+      setGoogleLoading(true);
+      setError('');
+      try {
+        const result = await auth.loginWithGoogleNative();
+        if (!result) {
+          setError(auth.lastError ?? 'No se pudo iniciar sesion con Google.');
+          return;
+        }
+        if (result.isNew) {
+          navigation.navigate('GoogleRoleSelect', result.pending);
+        } else {
+          navigateByRole(result.user.role, navigation);
+        }
+      } finally {
+        setGoogleLoading(false);
+      }
+    } else if (Platform.OS === 'web') {
       setGoogleLoading(true);
       setError('');
       try {

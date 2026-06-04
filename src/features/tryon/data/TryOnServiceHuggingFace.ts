@@ -30,7 +30,7 @@ export class TryOnServiceHuggingFace implements TryOnService {
             'upper_body',
           ],
         }),
-        signal: controller.signal,
+        signal: controller.signal as unknown as RequestInit['signal'],
       });
 
       if (!resp.ok) {

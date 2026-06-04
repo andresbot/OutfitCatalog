@@ -15,7 +15,13 @@
     ],
     "plugins": [
       "expo-sqlite",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.154090480908-pm39r8h62oj3mvetlm3at4e69945h8gf"
+        }
+      ]
     ],
     "android": {
       "package": "com.camilotriana07.outfitcatalog",

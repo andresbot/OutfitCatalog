@@ -28,6 +28,8 @@ node_modules/
 .env
 .env.*
 dist/
+dist-android*/
+artifacts/
 web-build/
 coverage/
 android/app/build/

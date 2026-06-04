@@ -3,13 +3,16 @@ import {
   ActivityIndicator,
   Animated,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../auth/AuthContext';
+import { cleanPhone, validatePhone } from '../core/utils/phoneUtils';
 import { RootStackParamList, UserRole } from '../types';
 import { colors, radius, shadows, spacing } from '../theme';
 
@@ -39,14 +42,28 @@ export function GoogleRoleSelectScreen({ route, navigation }: Props) {
   const { uid, name, email } = route.params;
   const auth = useAuth();
   const [role, setRole] = useState<UserRole>('user');
+  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [phoneFocused, setPhoneFocused] = useState(false);
   const btnScale = useRef(new Animated.Value(1)).current;
 
   const firstName = name.split(' ')[0];
 
   const onConfirm = async () => {
     if (loading) return;
+
+    const cleanedPhone = cleanPhone(phone);
+    if (!cleanedPhone) {
+      setError('Ingresa un numero de telefono.');
+      return;
+    }
+
+    const phoneError = validatePhone(phone);
+    if (phoneError) {
+      setError(phoneError);
+      return;
+    }
 
     Animated.sequence([
       Animated.spring(btnScale, { toValue: 0.96, useNativeDriver: true, speed: 50 }),
@@ -56,7 +73,7 @@ export function GoogleRoleSelectScreen({ route, navigation }: Props) {
     setLoading(true);
     setError('');
     try {
-      const createdUser = await auth.completeGoogleSignup(uid, name, email, role);
+      const createdUser = await auth.completeGoogleSignup(uid, name, email, role, cleanedPhone);
       if (!createdUser) {
         setError(auth.lastError ?? 'No se pudo crear la cuenta.');
         return;
@@ -70,7 +87,11 @@ export function GoogleRoleSelectScreen({ route, navigation }: Props) {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.orb} />
-      <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.brandWrap}>
           <Text style={styles.brand}>ATELIER</Text>
           <Text style={styles.brandSub}>Fashion Catalog</Text>
@@ -79,6 +100,22 @@ export function GoogleRoleSelectScreen({ route, navigation }: Props) {
         <View style={styles.card}>
           <Text style={styles.title}>Un ultimo paso</Text>
           <Text style={styles.subtitle}>Hola {firstName}, elige como usaras la app</Text>
+
+          <View style={[styles.inputWrap, phoneFocused && styles.inputWrapFocused]}>
+            <Text style={styles.inputLabel}>TELEFONO</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="+573001234567"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="phone-pad"
+              autoCorrect={false}
+              value={phone}
+              onChangeText={setPhone}
+              onFocus={() => setPhoneFocused(true)}
+              onBlur={() => setPhoneFocused(false)}
+              editable={!loading}
+            />
+          </View>
 
           <View style={styles.rolesContainer}>
             {ROLES.map((item) => {
@@ -126,7 +163,7 @@ export function GoogleRoleSelectScreen({ route, navigation }: Props) {
             </Pressable>
           </Animated.View>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -147,7 +184,7 @@ const styles = StyleSheet.create({
     opacity: 0.06,
   },
   container: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xl,
@@ -191,6 +228,31 @@ const styles = StyleSheet.create({
   },
   rolesContainer: {
     gap: spacing.sm,
+  },
+  inputWrap: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceHigh,
+    paddingHorizontal: spacing.md,
+    paddingTop: 9,
+    paddingBottom: 9,
+    minHeight: 68,
+  },
+  inputWrapFocused: { borderColor: colors.primary },
+  inputLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    color: colors.primary,
+    marginBottom: 2,
+  },
+  input: {
+    color: colors.textPrimary,
+    fontSize: 16,
+    height: 36,
+    lineHeight: 22,
+    paddingVertical: 0,
   },
   roleCard: {
     flexDirection: 'row',
