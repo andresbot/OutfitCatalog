@@ -17,6 +17,8 @@ const WAYPOINTS: Array<{ pos: [number, number, number]; look: [number, number, n
 export function ScrollCamera({ progress, count = WAYPOINTS.length }: { progress: number; count?: number }) {
   const camera = useThree((s) => s.camera);
   const target = useRef(new THREE.Vector3(0, 0.15, 0));
+  const tempPos = useRef(new THREE.Vector3());
+  const tempLook = useRef(new THREE.Vector3());
 
   useFrame(() => {
     const span = count - 1;
@@ -30,12 +32,12 @@ export function ScrollCamera({ progress, count = WAYPOINTS.length }: { progress:
     const px = THREE.MathUtils.lerp(a.pos[0], b.pos[0], ease);
     const py = THREE.MathUtils.lerp(a.pos[1], b.pos[1], ease);
     const pz = THREE.MathUtils.lerp(a.pos[2], b.pos[2], ease);
-    camera.position.lerp(new THREE.Vector3(px, py, pz), 0.08);
+    camera.position.lerp(tempPos.current.set(px, py, pz), 0.08);
 
     const lx = THREE.MathUtils.lerp(a.look[0], b.look[0], ease);
     const ly = THREE.MathUtils.lerp(a.look[1], b.look[1], ease);
     const lz = THREE.MathUtils.lerp(a.look[2], b.look[2], ease);
-    target.current.lerp(new THREE.Vector3(lx, ly, lz), 0.08);
+    target.current.lerp(tempLook.current.set(lx, ly, lz), 0.08);
     camera.lookAt(target.current);
   });
 
