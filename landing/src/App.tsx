@@ -5,6 +5,7 @@ import { VideoHologram } from './scene/VideoHologram';
 import { PhoneCore } from './scene/PhoneCore';
 import { useSharedVideo } from './scene/useSharedVideo';
 import { useScrollProgress } from './useScrollProgress';
+import { Overlay } from './sections/Overlay';
 
 export function App() {
   const progress = useScrollProgress();
@@ -24,8 +25,7 @@ export function App() {
           <PhoneCore texture={texture} position={[0, 0, -0.4]} />
         </Scene>
       </div>
-      {/* Overlay goes here — Task 9 will add it */}
-      <div style={{ height: '800vh' }} />
+      <Overlay />
     </main>
   );
 }
