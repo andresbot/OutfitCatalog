@@ -54,9 +54,11 @@ export function WhatsAppEditorModal({
 
   const handleSend = async () => {
     setSending(true);
-    await openWhatsApp(phone || null, message);
+    const opened = await openWhatsApp(phone || null, message);
     setSending(false);
-    onClose();
+    if (opened) {
+      onClose();
+    }
   };
 
   return (

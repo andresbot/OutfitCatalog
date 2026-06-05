@@ -10,6 +10,11 @@ export type VendorShareGroup = {
   garments: Pick<GarmentRow, 'name' | 'price' | 'size' | 'color' | 'category'>[];
 };
 
+type BuyerShareContext = {
+  buyerName?: string;
+  buyerPhone?: string | null;
+};
+
 /** Groups garments by vendor and fetches each vendor's WhatsApp phone from Firestore. */
 export async function buildShareGroups(
   garments: GarmentRow[],
@@ -33,18 +38,26 @@ export async function buildShareGroups(
 }
 
 /** Builds the WhatsApp message for a single vendor group. */
-export function buildWhatsAppMessage(lookName: string, group: VendorShareGroup): string {
+export function buildWhatsAppMessage(
+  lookName: string,
+  group: VendorShareGroup,
+  buyer?: BuyerShareContext,
+): string {
+  const buyerName = buyer?.buyerName?.trim();
+  const buyerPhone = buyer?.buyerPhone?.trim();
   const lines: string[] = [
-    `Hola ${group.vendorName} 👋`,
+    buyerName
+      ? `Hola ${group.vendorName}, soy ${buyerName}.`
+      : `Hola ${group.vendorName}.`,
     '',
-    'Estoy interesado/a en las siguientes prendas de tu catálogo:',
+    'Estoy interesado/a en las siguientes prendas de tu catalogo:',
     '',
   ];
 
   for (const g of group.garments) {
-    lines.push(`• *${g.name}*`);
-    lines.push(`  Categoría: ${g.category}`);
-    lines.push(`  Talla: ${g.size} · Color: ${g.color}`);
+    lines.push(`- *${g.name}*`);
+    lines.push(`  Categoria: ${g.category}`);
+    lines.push(`  Talla: ${g.size} | Color: ${g.color}`);
     lines.push(`  Precio: ${formatCOP(g.price)}`);
     lines.push('');
   }
@@ -54,7 +67,12 @@ export function buildWhatsAppMessage(lookName: string, group: VendorShareGroup):
     lines.push('');
   }
 
-  lines.push('_Enviado desde ATELIER_ ✨');
+  if (buyerPhone) {
+    lines.push(`Mi telefono registrado: ${buyerPhone}`);
+    lines.push('');
+  }
+
+  lines.push('_Enviado desde ATELIER_');
   return lines.join('\n');
 }
 
@@ -82,7 +100,7 @@ export function buildPersonalLookMessage(
     lines.push(`- *${garment.name}*`);
     lines.push(`  Vendedor: ${garment.vendorName}`);
     lines.push(`  Categoria: ${garment.category}`);
-    lines.push(`  Talla: ${garment.size} · Color: ${garment.color}`);
+    lines.push(`  Talla: ${garment.size} | Color: ${garment.color}`);
     lines.push(`  Precio: ${formatCOP(garment.price)}`);
     lines.push('');
   }
@@ -92,8 +110,6 @@ export function buildPersonalLookMessage(
   lines.push('_Enviado desde ATELIER_');
   return lines.join('\n');
 }
-
-// ── Garment share ────────────────────────────────────────────────────────────
 
 type GarmentShareInput = {
   name: string;
@@ -106,30 +122,40 @@ type GarmentShareInput = {
   vendorId: string;
   vendorName: string;
   resultImageUrl?: string;
+  buyerName?: string;
+  buyerPhone?: string | null;
 };
 
 function stockLabel(stock: number): string {
-  if (stock === 0) return 'Agotado ❌';
-  if (stock <= 5) return `Últimas ${stock} unidades ⚠️`;
-  return 'En stock ✅';
+  if (stock === 0) return 'Agotado';
+  if (stock <= 5) return `Ultimas ${stock} unidades`;
+  return 'En stock';
 }
 
 export function buildGarmentShareMessage(g: GarmentShareInput): string {
+  const buyerName = g.buyerName?.trim();
+  const buyerPhone = g.buyerPhone?.trim();
   const lines = [
-    `*${g.name}* — ${g.vendorName}`,
+    buyerName
+      ? `Hola ${g.vendorName}, soy ${buyerName}.`
+      : `Hola ${g.vendorName}.`,
     '',
-    `Categoría: ${g.category}`,
-    `Talla: ${g.size} · Color: ${g.color}`,
+    'Me interesa esta prenda de tu catalogo:',
+    '',
+    `*${g.name}*`,
+    `Categoria: ${g.category}`,
+    `Talla: ${g.size} | Color: ${g.color}`,
     `Precio: ${formatCOP(g.price)}`,
     `Disponibilidad: ${stockLabel(g.stock)}`,
     '',
     g.resultImageUrl
-      ? `📸 Así me vería con esta prenda:\n${g.resultImageUrl}`
+      ? `Asi me veria con esta prenda:\n${g.resultImageUrl}`
       : g.imageUrl,
     '',
-    '¿Estás interesado/a en esta prenda?',
+    'Quisiera consultar disponibilidad o reservarla.',
     '',
-    '_Enviado desde ATELIER_ ✨',
+    ...(buyerPhone ? [`Mi telefono registrado: ${buyerPhone}`, ''] : []),
+    '_Enviado desde ATELIER_',
   ];
   return lines.join('\n');
 }
@@ -140,33 +166,53 @@ export async function shareGarment(g: GarmentShareInput): Promise<void> {
   await openWhatsApp(phone, message);
 }
 
+export function normalizeWhatsAppPhone(phone: string | null | undefined): string | null {
+  const cleanPhone = phone ? phone.replace(/\D/g, '') : '';
+  return cleanPhone.length > 0 ? cleanPhone : null;
+}
+
+export function buildWhatsAppUrls(
+  phone: string | null | undefined,
+  message: string,
+): string[] {
+  const cleanPhone = normalizeWhatsAppPhone(phone);
+  const encoded = encodeURIComponent(message);
+
+  return [
+    cleanPhone
+      ? `whatsapp://send?phone=${cleanPhone}&text=${encoded}`
+      : `whatsapp://send?text=${encoded}`,
+    cleanPhone
+      ? `https://wa.me/${cleanPhone}?text=${encoded}`
+      : `https://wa.me/?text=${encoded}`,
+  ];
+}
+
+async function tryOpenUrl(url: string): Promise<boolean> {
+  try {
+    await Linking.openURL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Opens WhatsApp with the given phone number and message. */
 export async function openWhatsApp(
   phone: string | null,
   message: string,
-): Promise<void> {
-  const cleanPhone = phone ? phone.replace(/\D/g, '') : null;
-  const encoded = encodeURIComponent(message);
-  const url = cleanPhone
-    ? `https://wa.me/${cleanPhone}?text=${encoded}`
-    : `https://wa.me/?text=${encoded}`;
+): Promise<boolean> {
+  const urls = buildWhatsAppUrls(phone, message);
 
-  const canOpen = await Linking.canOpenURL(url);
-  if (canOpen) {
-    await Linking.openURL(url);
-    return;
-  }
-
-  // WhatsApp not installed — open web.whatsapp.com as fallback
-  const webUrl = `https://web.whatsapp.com/send?text=${encoded}`;
-  const canOpenWeb = await Linking.canOpenURL(webUrl);
-  if (canOpenWeb) {
-    await Linking.openURL(webUrl);
-    return;
+  for (const url of urls) {
+    if (await tryOpenUrl(url)) {
+      return true;
+    }
   }
 
   Alert.alert(
     'WhatsApp no disponible',
-    'No se pudo abrir WhatsApp. Verifica que esté instalado en tu dispositivo.',
+    'No se pudo abrir WhatsApp. Verifica que este instalado en tu dispositivo.',
   );
+  return false;
 }

@@ -33,7 +33,7 @@
     ],
     "android": {
       "package": "com.camilotriana07.outfitcatalog",
-      "versionCode": 2,
+      "versionCode": 3,
       "allowBackup": false,
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO"

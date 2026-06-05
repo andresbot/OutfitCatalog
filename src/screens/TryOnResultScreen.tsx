@@ -15,6 +15,7 @@ import { Image } from 'expo-image';
 import { uploadToCloudinary } from '../core/services/cloudinaryUpload';
 import { buildGarmentShareMessage } from '../core/services/lookShareService';
 import { getVendorPhone } from '../auth/firebaseUsers';
+import { useAuth } from '../auth/AuthContext';
 import { WhatsAppEditorModal } from '../components/WhatsAppEditorModal';
 import { formatCOP } from '../features/garment/presentation/utils/formatCOP';
 import { colors, radius, spacing } from '../theme';
@@ -23,6 +24,7 @@ import { RootStackParamList } from '../types';
 type Props = NativeStackScreenProps<RootStackParamList, 'TryOnResult'>;
 
 export function TryOnResultScreen({ route, navigation }: Props) {
+  const auth = useAuth();
   const {
     resultImageUrl,
     garmentName,
@@ -70,6 +72,8 @@ export function TryOnResultScreen({ route, navigation }: Props) {
         vendorId,
         vendorName,
         resultImageUrl: savedUrl ?? resultImageUrl,
+        buyerName: auth.user?.name,
+        buyerPhone: auth.user?.phone,
       });
       const phone = await getVendorPhone(vendorId);
       setEditorMessage(message);
@@ -81,7 +85,7 @@ export function TryOnResultScreen({ route, navigation }: Props) {
   }, [
     garmentName, garmentCategory, garmentPrice, garmentSize,
     garmentColor, garmentStock, garmentImageUrl, vendorId,
-    vendorName, savedUrl, resultImageUrl,
+    vendorName, savedUrl, resultImageUrl, auth.user?.name, auth.user?.phone,
   ]);
 
   return (

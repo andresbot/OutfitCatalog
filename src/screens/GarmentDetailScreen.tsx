@@ -150,24 +150,17 @@ export function GarmentDetailScreen({ route, navigation }: Props) {
       imageUrl: garment.imageUrl,
       vendorId: garment.vendorId,
       vendorName: garment.vendorName,
+      buyerName: auth.user?.name,
+      buyerPhone: auth.user?.phone,
     });
     setEditorPhone(phone);
     setEditorMessage(message);
     setSharing(false);
     setEditorVisible(true);
-  }, [garment]);
+  }, [auth.user?.name, auth.user?.phone, garment]);
 
-  const handlePurchaseRequest = useCallback(async () => {
-    if (!garment) return;
-    if (auth.user?.role !== 'user' || !auth.user?.id) {
-      Alert.alert('Solo clientes', 'Inicia sesion como cliente para solicitar prendas.');
-      return;
-    }
-    if (garment.stock === 0) {
-      Alert.alert('Agotado', 'Esta prenda no esta disponible para reserva.');
-      return;
-    }
-
+  const submitPurchaseRequest = useCallback(async () => {
+    if (!garment || auth.user?.role !== 'user' || !auth.user?.id) return;
     setRequesting(true);
     try {
       const request = await createPurchaseRequest({
@@ -192,6 +185,32 @@ export function GarmentDetailScreen({ route, navigation }: Props) {
       setRequesting(false);
     }
   }, [auth.user, garment]);
+
+  const handlePurchaseRequest = useCallback(() => {
+    if (!garment) return;
+    if (auth.user?.role !== 'user' || !auth.user?.id) {
+      Alert.alert('Solo clientes', 'Inicia sesion como cliente para solicitar prendas.');
+      return;
+    }
+    if (garment.stock === 0) {
+      Alert.alert('Agotado', 'Esta prenda no esta disponible para reserva.');
+      return;
+    }
+
+    Alert.alert(
+      'Confirmar solicitud',
+      `Vas a solicitar/reservar "${garment.name}" con ${garment.vendorName}. El vendedor recibira tu solicitud y se preparara el mensaje de WhatsApp.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Solicitar',
+          onPress: () => {
+            void submitPurchaseRequest();
+          },
+        },
+      ],
+    );
+  }, [auth.user?.id, auth.user?.role, garment, submitPurchaseRequest]);
 
   useFocusEffect(
     useCallback(() => {

@@ -229,7 +229,10 @@ export function LookDetailScreen({ navigation, route }: Props) {
       }
 
       const group = groups[index];
-      const message = buildWhatsAppMessage(name || look?.name || '', group);
+      const message = buildWhatsAppMessage(name || look?.name || '', group, {
+        buyerName: auth.user?.name,
+        buyerPhone: auth.user?.phone,
+      });
       await openWhatsApp(group.vendorPhone, message);
 
       if (index < groups.length - 1) {
@@ -248,7 +251,7 @@ export function LookDetailScreen({ navigation, route }: Props) {
     };
 
     await send(0);
-  }, [look?.name, name]);
+  }, [auth.user?.name, auth.user?.phone, look?.name, name]);
 
   const handleRequestLook = useCallback(async () => {
     if (!look || auth.user?.role !== 'user' || !auth.user?.id) {
@@ -273,48 +276,64 @@ export function LookDetailScreen({ navigation, route }: Props) {
       }
     }
 
-    setRequestingLook(true);
-    try {
-      await Promise.all(
-        Array.from(groups.entries()).map(([vendorId, group]) =>
-          createPurchaseRequest({
-            buyerId: auth.user!.id,
-            buyerName: auth.user!.name,
-            buyerEmail: auth.user!.email,
-            buyerPhone: auth.user!.phone,
-            vendorId,
-            vendorName: group.vendorName,
-            source: 'look',
-            sourceId: look.id,
-            sourceName: name || look.name,
-            items: group.garments.map(garmentToRequestItem),
-          }),
-        ),
-      );
-      Alert.alert(
-        'Solicitud creada',
-        groups.size === 1
-          ? 'El vendedor ya puede ver tu solicitud.'
-          : `Se crearon ${groups.size} solicitudes, una por vendedor.`,
-        [
-          { text: 'Ver solicitudes', onPress: () => navigation.navigate('PurchaseRequests', { mode: 'buyer' }) },
-          {
-            text: 'Contactar vendedores',
-            onPress: () => {
-              void (async () => {
-                const groupsToContact = await buildShareGroups(garmentItems.map((g) => g.garment));
-                await sendShareGroups(groupsToContact);
-              })();
-            },
+    Alert.alert(
+      'Confirmar solicitud',
+      groups.size === 1
+        ? `Vas a solicitar/reservar este look con ${Array.from(groups.values())[0].vendorName}.`
+        : `Vas a crear ${groups.size} solicitudes, una por cada vendedor del look.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Solicitar',
+          onPress: () => {
+            void (async () => {
+              setRequestingLook(true);
+              try {
+                await Promise.all(
+                  Array.from(groups.entries()).map(([vendorId, group]) =>
+                    createPurchaseRequest({
+                      buyerId: auth.user!.id,
+                      buyerName: auth.user!.name,
+                      buyerEmail: auth.user!.email,
+                      buyerPhone: auth.user!.phone,
+                      vendorId,
+                      vendorName: group.vendorName,
+                      source: 'look',
+                      sourceId: look.id,
+                      sourceName: name || look.name,
+                      items: group.garments.map(garmentToRequestItem),
+                    }),
+                  ),
+                );
+                Alert.alert(
+                  'Solicitud creada',
+                  groups.size === 1
+                    ? 'El vendedor ya puede ver tu solicitud.'
+                    : `Se crearon ${groups.size} solicitudes, una por vendedor.`,
+                  [
+                    { text: 'Ver solicitudes', onPress: () => navigation.navigate('PurchaseRequests', { mode: 'buyer' }) },
+                    {
+                      text: 'Contactar vendedores',
+                      onPress: () => {
+                        void (async () => {
+                          const groupsToContact = await buildShareGroups(garmentItems.map((g) => g.garment));
+                          await sendShareGroups(groupsToContact);
+                        })();
+                      },
+                    },
+                    { text: 'Cerrar', style: 'cancel' },
+                  ],
+                );
+              } catch {
+                Alert.alert('Error', 'No se pudo crear la solicitud del look.');
+              } finally {
+                setRequestingLook(false);
+              }
+            })();
           },
-          { text: 'Cerrar', style: 'cancel' },
-        ],
-      );
-    } catch {
-      Alert.alert('Error', 'No se pudo crear la solicitud del look.');
-    } finally {
-      setRequestingLook(false);
-    }
+        },
+      ],
+    );
   }, [auth.user, garmentItems, look, name, navigation, sendShareGroups]);
 
   const handleContactVendor = useCallback(
@@ -484,7 +503,10 @@ export function LookDetailScreen({ navigation, route }: Props) {
             setEditorVisible(false);
             setShareModalVisible(true);
           }}
-          initialMessage={buildWhatsAppMessage(name || look?.name || '', editorGroup)}
+          initialMessage={buildWhatsAppMessage(name || look?.name || '', editorGroup, {
+            buyerName: auth.user?.name,
+            buyerPhone: auth.user?.phone,
+          })}
           initialPhone={editorGroup.vendorPhone}
           imageUrl={garmentItems[0]?.garment.imageUrl}
           title={`Mensaje para ${editorGroup.vendorName}`}
