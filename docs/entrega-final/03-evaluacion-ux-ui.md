@@ -112,13 +112,59 @@ El telefono es obligatorio para ambos roles porque la aplicacion depende de cont
 | Modulo | UX actual | Recomendacion |
 |---|---|---|
 | Login/registro | Claro y directo | Agregar recuperacion de contrasena si se publica |
-| Catalogo | Visual, basado en cards | Agregar ordenamiento avanzado en produccion |
+| Catalogo | Visual, basado en cards | Agregar filtro por genero/tipo de prenda y ordenamiento avanzado |
 | Favoritos | Facil de entender | Mantener accion de crear look visible |
 | Looks | Flujo diferencial de valor | Mejorar vista tipo collage en futuras versiones |
 | Inventario | Util para vendedor | Agregar filtros por stock y categoria mas avanzados |
 | Solicitudes | Flujo comercial claro | Agregar notificaciones push en produccion |
 | Admin | Cumple supervision basica | Ampliar reportes con graficas |
 
-## 9. Conclusion UX/UI
+## 9. Resultados de encuesta de usabilidad
 
-OutfitCatalog presenta una experiencia coherente con su categoria de moda. La app combina una identidad visual premium con flujos funcionales de cliente y vendedor. El producto es usable como MVP academico y permite completar los procesos principales. Para una version comercial se recomienda reforzar accesibilidad, notificaciones, analiticas de comportamiento y pruebas con usuarios reales.
+Se aplico una encuesta corta a 7 usuarios comunes, no programadores, despues de probar el APK en Android. La muestra no pretende ser estadistica, pero funciona como prueba piloto de usabilidad para una entrega academica.
+
+### Perfil de participantes
+
+| Rango de edad | Participantes |
+|---|---:|
+| Menos de 18 | 3 |
+| 18 a 24 | 2 |
+| 25 a 34 | 1 |
+| 35 a 44 | 1 |
+
+| Dispositivo de prueba | Participantes |
+|---|---:|
+| Celular Android propio | 6 |
+| Celular prestado | 1 |
+
+### Indicadores cuantitativos
+
+| Indicador evaluado | Promedio |
+|---|---:|
+| Entendi rapidamente de que trata ATELIER | 5.00 / 5 |
+| Fue facil crear cuenta o entrar | 4.71 / 5 |
+| Fue facil mirar prendas, favoritos o looks | 5.00 / 5 |
+| El diseno de la app me parecio agradable | 5.00 / 5 |
+| La app cargo y funciono bien | 4.86 / 5 |
+| Promedio general | 4.91 / 5 |
+| Nota general de ATELIER | 5.00 / 5 |
+| Recomendacion de la app | 7/7 usuarios |
+
+### Hallazgos cualitativos
+
+Los comentarios positivos mas repetidos fueron:
+
+- La app se percibio util.
+- La variedad de prendas y vendedores fue valorada positivamente.
+- El catalogo y las imagenes resultaron atractivos.
+- El flujo de contactar o solicitar fue entendido por usuarios que alcanzaron esa parte de la prueba.
+
+Las mejoras sugeridas fueron:
+
+- Agregar filtro para ropa de hombre y mujer.
+- Incluir una opcion de modo claro.
+- Mejorar la carga de imagenes cuando una foto remota no aparece.
+
+## 10. Conclusion UX/UI
+
+OutfitCatalog presenta una experiencia coherente con su categoria de moda. La app combina una identidad visual premium con flujos funcionales de cliente y vendedor. La encuesta piloto confirma una recepcion positiva: todos los participantes pudieron instalar la app y todos la recomendarian. Para una version comercial se recomienda reforzar accesibilidad, notificaciones, analiticas de comportamiento, filtro por genero/tipo de prenda, modo claro y manejo visual mas robusto para imagenes que no carguen.

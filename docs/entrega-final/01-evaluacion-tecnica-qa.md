@@ -151,10 +151,27 @@ Resultado:
 | TypeScript `tsc --noEmit` | Aprobado |
 | Vitest | Aprobado |
 | Archivos de prueba | 9 |
-| Casos automatizados | 14 |
+| Casos automatizados | 17 |
 | EAS Build Android | Aprobado |
 
-## 8. Hallazgos
+## 8. Evidencia de prueba piloto con usuarios
+
+Ademas de la verificacion tecnica, se realizo una prueba piloto con 7 usuarios no tecnicos usando Android. La encuesta se aplico el 4 de junio de 2026 y permitio contrastar la estabilidad percibida de la app en condiciones reales de instalacion y uso.
+
+| Indicador | Resultado |
+|---|---:|
+| Participantes | 7 |
+| Instalacion exitosa | 7/7 |
+| Usuarios en celular Android propio | 6/7 |
+| Usuarios en celular Android prestado | 1/7 |
+| Usuarios que reportaron que todo funciono bien | 6/7 |
+| Usuarios que reportaron fotos faltantes | 1/7 |
+| Recomendaria la app | 7/7 |
+| Promedio general de calificaciones | 4.91 / 5 |
+
+La incidencia tecnica mas relevante fue el reporte "Algunas fotos no aparecieron". Este hallazgo se relaciona con carga de imagenes remotas y no con cierre inesperado de la aplicacion. Como mitigacion se recomienda mantener cache de imagenes, agregar placeholders mas claros y registrar errores de carga para detectar URLs rotas o fallos temporales de red.
+
+## 9. Hallazgos
 
 | Hallazgo | Estado |
 |---|---|
@@ -162,11 +179,14 @@ Resultado:
 | Pruebas automatizadas basicas | Cumplido |
 | Offline banner y cache local | Cumplido |
 | Optimizacion de listas grandes | Cumplido |
+| Prueba piloto Android con usuarios | Cumplido |
+| Incidencia aislada de imagenes no visibles | Mejora futura |
+| Analitica propia en Firestore | Cumplido |
 | Crashlytics integrado | Pendiente |
-| Analytics integrado | Pendiente |
+| Firebase Analytics nativo | Pendiente |
 | Prueba formal en iOS | Pendiente |
 | Publicacion en tiendas | Pendiente |
 
-## 9. Conclusion QA
+## 10. Conclusion QA
 
-OutfitCatalog presenta una base tecnica estable para una entrega academica final. El proyecto compila, tiene pruebas automatizadas, maneja persistencia local, conectividad y build Android. Para un lanzamiento comercial se recomienda ampliar pruebas manuales en dispositivos reales, integrar monitoreo de crashes y medir rendimiento con herramientas de profiling.
+OutfitCatalog presenta una base tecnica estable para una entrega academica final. El proyecto compila, tiene pruebas automatizadas, maneja persistencia local, conectividad y build Android. La prueba piloto refuerza esta conclusion: todos los usuarios pudieron instalar la app y la mayoria no reporto fallos. Para un lanzamiento comercial se recomienda ampliar pruebas manuales en mas dispositivos reales, integrar monitoreo de crashes, registrar errores de imagenes y medir rendimiento con herramientas de profiling.

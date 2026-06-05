@@ -93,7 +93,18 @@ El panel de reportes calcula, para los ultimos 30 dias:
 - Productos actualizados.
 - Eventos mas frecuentes.
 
-## 7. Reglas Firebase recomendadas
+## 7. Relacion con encuesta de usuarios
+
+La analitica en Firestore mide comportamiento dentro de la app, mientras que la encuesta mide percepcion de usuarios. Para la entrega final se usaron ambas fuentes:
+
+| Fuente | Que mide | Resultado principal |
+|---|---|---|
+| Firestore `analyticsEvents` | Eventos reales dentro de la app | Base para DAU, MAU, vistas, favoritos, looks y solicitudes |
+| Encuesta Android | Opinion y experiencia percibida | 7/7 instalaron, 7/7 recomendarian, promedio 4.91/5 |
+
+Esta combinacion permite evaluar tanto el uso observable como la satisfaccion inicial. En una version posterior, Firebase Analytics nativo permitiria reemplazar parte del calculo manual y obtener retencion, embudos y audiencias directamente desde GA4.
+
+## 8. Reglas Firebase recomendadas
 
 Agregar el siguiente bloque dentro de `match /databases/{database}/documents`, junto a las reglas actuales:
 
@@ -117,7 +128,7 @@ match /analyticsEvents/{eventId} {
 
 Estas reglas permiten que usuarios autenticados creen eventos, pero solo administradores puedan leerlos. No se permite editar o borrar eventos desde la app.
 
-## 8. Consideraciones de privacidad
+## 9. Consideraciones de privacidad
 
 La analitica implementada no guarda contrasenas ni datos bancarios. Los eventos pueden guardar identificador de usuario y rol, por lo que se recomienda:
 
@@ -126,7 +137,9 @@ La analitica implementada no guarda contrasenas ni datos bancarios. Los eventos 
 - Limitar la lectura de `analyticsEvents` a administradores.
 - Depurar eventos antiguos si el volumen crece.
 
-## 9. Limitaciones
+La encuesta se uso como evidencia academica agregada. Los nombres ingresados por participantes no son necesarios para el analisis tecnico, por lo que los documentos solo reportan resultados agrupados y no datos personales.
+
+## 10. Limitaciones
 
 Esta solucion es adecuada para MVP y entrega academica. Para produccion se recomienda:
 
@@ -135,6 +148,6 @@ Esta solucion es adecuada para MVP y entrega academica. Para produccion se recom
 - Agregaciones periodicas para no leer demasiados eventos.
 - Exportacion a BigQuery si el proyecto escala.
 
-## 10. Conclusion
+## 11. Conclusion
 
-La aplicacion queda con medicion KPI integrada de forma gratuita y verificable desde Firebase. Esto fortalece la entrega final porque permite evidenciar adopcion, conversion y actividad comercial sin depender de servicios pagos.
+La aplicacion queda con medicion KPI integrada de forma gratuita y verificable desde Firebase. Esto fortalece la entrega final porque permite evidenciar adopcion, conversion y actividad comercial sin depender de servicios pagos. La encuesta piloto complementa esta medicion al mostrar recepcion positiva de usuarios reales y senalar mejoras concretas para la siguiente iteracion.

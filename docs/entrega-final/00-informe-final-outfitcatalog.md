@@ -65,7 +65,7 @@ La version final incluye:
 | EAS Build ID | `b56095a2-87a4-4dac-ae47-7f5d8599dee4` |
 | Estado del build | `FINISHED` |
 | Comando de build TypeScript | `npm run build` |
-| Resultado de pruebas | 9 archivos de prueba, 14 pruebas aprobadas |
+| Resultado de pruebas | 9 archivos de prueba, 17 pruebas aprobadas |
 
 ## Metodologia de evaluacion
 
@@ -82,6 +82,10 @@ Adicionalmente se incluyen anexos de arquitectura, plan de despliegue, mantenimi
 La aplicacion cumple con los requerimientos centrales de un proyecto movil funcional: tiene navegacion real, autenticacion, persistencia local, sincronizacion remota, roles, gestion de inventario y build instalable en Android. El uso de Expo facilita la generacion de artefactos y reduce la complejidad de configuracion nativa.
 
 El proyecto tambien evidencia una base tecnica mantenible mediante TypeScript, separacion por carpetas, servicios, DAOs, casos de uso y pruebas automatizadas. La aplicacion cuenta con una estrategia offline-first para catalogo e inventario, apoyada en SQLite y manejo visual de desconexion.
+
+Como evidencia de validacion con usuarios, se aplico una encuesta de prueba piloto a 7 personas en Android el 4 de junio de 2026. El 100% de los participantes indico que pudo instalar la aplicacion, el 100% afirmo que la recomendaria y el promedio general de calificacion fue 4.91 sobre 5. Los comentarios positivos destacaron la utilidad del catalogo, la variedad de prendas, la facilidad para contactar vendedores y la calidad visual de las imagenes.
+
+La encuesta tambien permitio identificar mejoras futuras. Un usuario reporto que algunas fotos no aparecieron, por lo que se recomienda reforzar estados de carga, fallback visual y manejo de imagenes remotas. Dos usuarios sugirieron agregar filtro por genero o tipo de ropa para hombre/mujer, y un usuario propuso incluir modo claro. Estos hallazgos no bloquearon el flujo principal, pero sirven como insumo para una version posterior.
 
 Como puntos pendientes para una publicacion productiva completa, se recomienda complementar la analitica propia en Firestore con Firebase Analytics nativo, Crashlytics, pruebas manuales documentadas en dispositivos iOS, publicacion en tiendas y politicas legales de privacidad.
 

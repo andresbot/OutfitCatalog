@@ -25,6 +25,8 @@ OutfitCatalog funciona como una app de catalogo de moda donde vendedores publica
 | DAU | Usuarios activos diarios | Firestore `analyticsEvents` | Integrado como analitica propia |
 | MAU | Usuarios activos mensuales | Firestore `analyticsEvents` | Integrado como analitica propia |
 | Usuarios por rol | Conteo por `role` | Firestore `users` | Medible desde Firestore |
+| Instalacion en prueba piloto | Usuarios que instalaron / usuarios encuestados | Encuesta Android | 7/7 |
+| Recomendacion | Usuarios que recomendarian / usuarios encuestados | Encuesta Android | 7/7 |
 
 ## 5. Retencion y churn
 
@@ -156,6 +158,34 @@ Se recomienda integrar Firebase Analytics nativo por compatibilidad con el ecosi
 
 Tambien se recomienda integrar Crashlytics para medir estabilidad real en dispositivos.
 
-## 12. Conclusion de negocio
+## 12. Resultados reales de encuesta piloto
 
-OutfitCatalog tiene un flujo de negocio claro: convertir exploracion visual en solicitudes comerciales para vendedores. Con la integracion de eventos KPI en Firestore, la aplicacion ya puede medir comportamiento basico de usuarios, conversion e inventario sin costo adicional. Para una publicacion comercial se recomienda ampliar esta base con Firebase Analytics nativo, Crashlytics y metricas reales de tienda.
+Para complementar las metricas tecnicas, se aplico una encuesta a 7 usuarios Android. Estos datos permiten tener una lectura inicial de adopcion, satisfaccion y oportunidades de mejora antes de publicar la app en tiendas.
+
+| Metrica | Resultado |
+|---|---:|
+| Usuarios encuestados | 7 |
+| Instalacion exitosa | 100% |
+| Recomendacion de la app | 100% |
+| Promedio general de calificacion | 4.91 / 5 |
+| Nota general final | 5.00 / 5 |
+| Usuarios que probaron registro o ingreso | 5/7 |
+| Usuarios que probaron catalogo | 4/7 |
+| Usuarios que probaron favoritos | 4/7 |
+| Usuarios que probaron looks | 4/7 |
+| Usuarios que probaron contacto o solicitud | 3/7 |
+| Usuarios sin problemas reportados | 6/7 |
+
+### Interpretacion
+
+La adopcion inicial fue positiva: todos los participantes pudieron instalar el APK y todos indicaron que recomendarian la aplicacion. La prueba tambien muestra que no todos los usuarios recorrieron el embudo completo hasta solicitud/contacto; esto es esperable en una prueba corta, pero para una evaluacion comercial futura conviene guiar al usuario con una tarea especifica: instalar, registrarse, abrir catalogo, guardar favorito, crear look y contactar vendedor.
+
+### Oportunidades de negocio detectadas
+
+- Agregar filtro por genero o tipo de prenda podria mejorar la busqueda y acelerar la conversion.
+- Mejorar carga/fallback de imagenes reduce friccion visual en catalogo.
+- Evaluar modo claro podria ampliar comodidad para usuarios que prefieren interfaces luminosas.
+
+## 13. Conclusion de negocio
+
+OutfitCatalog tiene un flujo de negocio claro: convertir exploracion visual en solicitudes comerciales para vendedores. Con la integracion de eventos KPI en Firestore, la aplicacion ya puede medir comportamiento basico de usuarios, conversion e inventario sin costo adicional. La encuesta piloto agrega evidencia real de satisfaccion inicial y confirma que el producto es entendible para usuarios no tecnicos. Para una publicacion comercial se recomienda ampliar esta base con Firebase Analytics nativo, Crashlytics, metricas reales de tienda y pruebas con una muestra mas amplia.

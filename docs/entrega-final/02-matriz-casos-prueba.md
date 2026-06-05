@@ -11,7 +11,7 @@ Documentar los escenarios principales que deben verificarse para validar la cali
 | `npm run build` | Aprobado |
 | `npm test` | Aprobado |
 | Archivos de prueba | 9 |
-| Casos automatizados | 14 |
+| Casos automatizados | 17 |
 
 ## 3. Casos de prueba funcionales
 
@@ -82,7 +82,24 @@ Documentar los escenarios principales que deben verificarse para validar la cali
 | `src/core/services/lookShareService.test.ts` | Mensajes para WhatsApp |
 | `src/core/services/purchaseRequestService.test.ts` | Mensaje de solicitud de compra |
 
-## 7. Criterios de aceptacion global
+## 7. Prueba piloto con usuarios Android
+
+La app fue probada por 7 usuarios no tecnicos mediante instalacion del APK en Android. La encuesta posterior permite marcar como validados los flujos principales desde una perspectiva de usuario final.
+
+| ID | Evidencia de usuario | Resultado |
+|---|---|---|
+| USR-001 | Instalacion del APK | 7/7 usuarios pudieron instalar |
+| USR-002 | Registro o ingreso | 5/7 usuarios indicaron probar creacion de cuenta o ingreso |
+| USR-003 | Exploracion de catalogo | 4/7 usuarios indicaron mirar prendas en el catalogo |
+| USR-004 | Detalle de prenda | 4/7 usuarios indicaron abrir una prenda |
+| USR-005 | Favoritos | 4/7 usuarios indicaron guardar una prenda favorita |
+| USR-006 | Looks | 4/7 usuarios indicaron ver o crear un look |
+| USR-007 | Contacto o solicitud | 3/7 usuarios indicaron enviar solicitud o contactar vendedor |
+| USR-008 | Estabilidad percibida | 6/7 usuarios reportaron que todo funciono bien |
+| USR-009 | Carga de imagenes | 1/7 usuarios reporto que algunas fotos no aparecieron |
+| USR-010 | Recomendacion | 7/7 usuarios recomendarian la app |
+
+## 8. Criterios de aceptacion global
 
 La aplicacion se considera aceptada para entrega academica si:
 
@@ -94,7 +111,8 @@ La aplicacion se considera aceptada para entrega academica si:
 - Vendedor puede gestionar inventario y solicitudes.
 - La app no se cierra ante errores comunes de red.
 - Las reglas de Firebase permiten solo las operaciones autorizadas.
+- La prueba piloto no evidencia bloqueos generalizados en instalacion, registro o navegacion.
 
-## 8. Observaciones
+## 9. Observaciones
 
-Esta matriz debe completarse con evidencia de ejecucion manual antes de una entrega en produccion. Para una entrega academica, la matriz sirve como soporte de validacion y como guia de pruebas funcionales finales.
+Esta matriz combina pruebas automatizadas, criterios manuales y resultados de encuesta. Para una entrega en produccion se recomienda ampliar la muestra de usuarios, probar mas modelos de Android, documentar evidencias visuales por caso y agregar monitoreo automatico de errores.
